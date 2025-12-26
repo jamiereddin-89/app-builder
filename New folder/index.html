@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Puter App Factory Pro - Jamie Edition</title>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+    <style>
+      body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; background: #e8e8e8; color: #1a1a1a; }
+      #container { width: 100%; height: 100vh; }
+      .monaco-container { border-radius: 12px; overflow: hidden; height: 100%; }
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: #e8e8e8; }
+      ::-webkit-scrollbar-thumb { background: #c5c5c5; border-radius: 10px; }
+      .loader { border: 3px solid #f3f3f3; border-top: 3px solid #ef4444; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div id="container"></div>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@18.2.0",
+          "react-dom": "https://esm.sh/react-dom@18.2.0",
+          "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+          "use-fireproof": "https://esm.sh/use-fireproof?external=react,react-dom"
+        }
+      }
+    </script>
+    <script type="text/babel" data-type="module">
+      import React, { useState, useEffect, useRef } from "react";
+      import ReactDOMClient from "react-dom/client";
+      import { useFireproof } from "use-fireproof";
+
+      function App() {
+        const { useLiveQuery, database } = useFireproof("puter-apps-pro-v1");
+        const { docs: apps } = useLiveQuery("type", { key: "app", descending: true });
+        
+        const [user, setUser] = useState(null);
+        const [puter, setPuter] = useState(null);
+        const [generating, setGenerating] = useState(false);
+        const [selectedApp, setSelectedApp] = useState(null);
+        const [activeTab, setActiveTab] = useState("build");
+        const [prompt, setPrompt] = useState("");
+        const [refinePrompt, setRefinePrompt] = useState("");
+        const [log, setLog] = useState([]);
+        const [showCode, setShowCode] = useState(false);
+        
+        const editorRef = useRef(null);
+        const monacoEl = useRef(null);
+
+        const addLog = (msg) => setLog(prev => [...prev.slice(-15), `${new Date().toLocaleTimeString()}: ${msg}`]);
+
+        useEffect(() => {
+          const script = document.createElement("script");
+          script.src = "https://js.puter.com/v2/";
+          script.onload = async () => {
+            const p = window.puter;
+            setPuter(p);
+            if (p.auth.isSignedIn()) setUser(await p.auth.getUser());
+          };
+          document.body.appendChild(script);
+          window.require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+        }, []);
+
+        useEffect(() => {
+          if (showCode && monacoEl.current && !editorRef.current) {
+            window.require(['vs/editor/editor.main'], () => {
+              editorRef.current = window.monaco.editor.create(monacoEl.current, {
+                value: selectedApp?.code || "",
+                language: 'html',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false }
+              });
+            });
+          } else if (showCode && editorRef.current && selectedApp) {
+             if(editorRef.current.getValue() !== selectedApp.code) {
+                editorRef.current.setValue(selectedApp.code);
+             }
+          }
+        }, [showCode, selectedApp]);
+
+        async function buildApp() {
+          if(!prompt.trim()) return;
+          setGenerating(true);
+          addLog("Architecting New Project...");
+          try {
+            const res = await puter.ai.chat(`Create a single standalone HTML file for: ${prompt}. Use modern, clean aesthetics.`, { model: 'gpt-4o' });
+            let code = res?.message?.content || String(res);
+            code = code.replace(/```html?\n?/gi, "").replace(/```\n?/g, "").trim();
+            
+            const dirName = `app_${Date.now()}`;
+            await puter.fs.mkdir(dirName);
+            await puter.fs.write(`${dirName}/index.html`, code);
+            const site = await puter.hosting.create(puter.randName(), dirName);
+            
+            const doc = await database.put({
+              type: "app",
+              prompt,
+              code,
+              hostedUrl: `https://${site.subdomain}.puter.site`,
+              dir: dirName,
+              subdomain: site.subdomain,
+              createdAt: Date.now()
+            });
+            
+            setSelectedApp(await database.get(doc.id));
+            addLog(`✅ Live at ${site.subdomain}.puter.site`);
+          } catch (e) { addLog(`❌ Build Error: ${e.message}`); }
+          setGenerating(false);
+        }
+
+        async function refineApp() {
+          if (!refinePrompt.trim() || !selectedApp) return;
+          setGenerating(true);
+          addLog("Refining code structure...");
+          try {
+            const res = await puter.ai.chat([
+              { role: "system", content: "Update the provided HTML code based on instructions. Return ONLY the code." },
+              { role: "user", content: `CODE:\n${selectedApp.code}\n\nCHANGES: ${refinePrompt}` }
+            ]);
+            let newCode = res?.message?.content || String(res);
+            newCode = newCode.replace(/```html?\n?/gi, "").replace(/```\n?/g, "").trim();
+            if (editorRef.current) editorRef.current.setValue(newCode);
+            await updateAndRedeploy(newCode);
+            setRefinePrompt("");
+            addLog("✅ Refinement complete!");
+          } catch (err) { addLog(`❌ Refine Error: ${err.message}`); }
+          setGenerating(false);
+        }
+
+        async function updateAndRedeploy(manualCode) {
+          const codeToDeploy = manualCode || (editorRef.current ? editorRef.current.getValue() : selectedApp.code);
+          if (!codeToDeploy || !selectedApp) return;
+          setGenerating(true);
+          try {
+            await puter.fs.write(`${selectedApp.dir}/index.html`, codeToDeploy);
+            const updated = { ...selectedApp, code: codeToDeploy, updatedAt: Date.now() };
+            await database.put(updated);
+            setSelectedApp(updated);
+            addLog("✅ Deployed!");
+          } catch (e) { addLog(`❌ Update Error: ${e.message}`); }
+          setGenerating(false);
+        }
+
+        const neu = "bg-[#e8e8e8] shadow-[8px_8px_16px_#c5c5c5,-8px_-8px_16px_#ffffff]";
+        const neuInset = "bg-[#e8e8e8] shadow-[inset_4px_4px_8px_#c5c5c5,inset_-4px_-4px_8px_#ffffff]";
+        const neuBtn = "bg-[#e8e8e8] shadow-[4px_4px_8px_#c5c5c5,-4px_-4px_8px_#ffffff] active:shadow-[inset_2px_2px_5px_#c5c5c5] p-3 rounded-xl transition-all";
+
+        return (
+          <div className="p-6 h-screen flex flex-col gap-6 overflow-hidden">
+            <header className={`${neu} p-4 rounded-3xl flex justify-between items-center px-8`}>
+              <h1 className="font-black text-2xl tracking-tighter italic">FACTORY PRO <span className="text-gray-400 font-light ml-1 not-italic text-sm text-red-500">JAMIE EDITION</span></h1>
+              <div className="flex gap-4">
+                {!user ? <button onClick={() => puter.auth.signIn()} className={neuBtn}>Connect</button> : <span className="text-xs font-bold bg-white px-3 py-1 rounded-full shadow-sm">@{user.username}</span>}
+              </div>
+            </header>
+
+            <main className="flex-1 flex gap-6 overflow-hidden">
+              <div className="w-100 flex flex-col gap-6">
+                <div className={`${neu} p-6 rounded-[2rem] space-y-5 flex-1 flex flex-col overflow-hidden`}>
+                  <div className="flex gap-2 p-1 rounded-2xl bg-gray-200/50">
+                    <button onClick={() => setActiveTab("build")} className={`flex-1 py-2 rounded-xl font-black text-xs uppercase ${activeTab === 'build' ? 'bg-white text-red-500' : 'text-gray-500'}`}>Architect</button>
+                    <button onClick={() => setActiveTab("apps")} className={`flex-1 py-2 rounded-xl font-black text-xs uppercase ${activeTab === 'apps' ? 'bg-white text-red-500' : 'text-gray-500'}`}>Inventory</button>
+                  </div>
+
+                  {activeTab === "build" ? (
+                    <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
+                      <textarea value={prompt} onChange={e => setPrompt(e.target.value)} className={`${neuInset} w-full p-4 rounded-2xl h-32 outline-none border-none text-sm`} placeholder="Build something amazing..." />
+                      {selectedApp && (
+                        <div className="pt-4 border-t border-gray-200 space-y-3">
+                          <textarea value={refinePrompt} onChange={e => setRefinePrompt(e.target.value)} className={`${neuInset} w-full p-4 rounded-2xl h-24 outline-none border-none text-sm`} placeholder="Changes to current app..." />
+                          <button onClick={refineApp} className={`${neuBtn} w-full font-black text-xs bg-zinc-900 text-white`}>Apply Changes</button>
+                        </div>
+                      )}
+                      <button onClick={buildApp} disabled={generating} className="w-full bg-red-500 text-white py-5 rounded-2xl font-black shadow-lg flex items-center justify-center gap-3">
+                        {generating && <div className="loader" />} {generating ? "MANUFACTURING..." : "GENERATE & DEPLOY"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto space-y-3">
+                       {apps.map(app => (
+                        <div key={app._id} onClick={() => setSelectedApp(app)} className={`${selectedApp?._id === app._id ? 'border-red-400 border-2' : ''} ${neu} p-4 rounded-2xl cursor-pointer`}>
+                          <div className="font-black text-xs truncate uppercase">{app.prompt}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className={`${neuInset} p-4 rounded-3xl h-48 overflow-y-auto font-mono text-[10px] text-gray-600`}>
+                  {log.map((l, i) => <div key={i} className="mb-1">{l}</div>)}
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col gap-6">
+                <div className={`${neu} rounded-[2.5rem] flex-1 overflow-hidden flex flex-col relative`}>
+                  <div className="bg-[#1a1a1a] p-4 flex justify-between items-center text-white px-8">
+                    <div className="text-[10px] font-mono opacity-50 uppercase">{selectedApp?.subdomain || 'Standby'}</div>
+                    <div className="flex gap-6">
+                      <button onClick={() => setShowCode(!showCode)} className="text-xs font-black">{showCode ? "PREVIEW" : "SOURCE"}</button>
+                      {showCode && <button onClick={() => updateAndRedeploy()} className="text-xs font-black text-green-400">PUSH</button>}
+                    </div>
+                  </div>
+                  <div className="flex-1 relative bg-white">
+                    {showCode ? <div ref={monacoEl} className="monaco-container h-full w-full" /> : <iframe srcDoc={selectedApp?.code} className="w-full h-full border-none" />}
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        );
+      }
+      ReactDOMClient.createRoot(document.getElementById("container")).render(<App />);
+    </script>
+  </body>
+</html>
