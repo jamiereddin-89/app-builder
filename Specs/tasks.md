@@ -231,7 +231,7 @@ Organize the 12 app templates into logical categories (Productivity, Utilities, 
 
 ---
 
-### Task 3.3: App Preview Zoom Controls
+### [X] Task 3.3: App Preview Zoom Controls
 **Priority**: LOW  
 **Estimated Effort**: 1 hour  
 **Dependencies**: None
@@ -254,7 +254,7 @@ Organize the 12 app templates into logical categories (Productivity, Utilities, 
 
 ---
 
-### Task 3.4: Code Editor Syntax Highlighting
+### [X] Task 3.4: Code Editor Syntax Highlighting
 **Priority**: MEDIUM  
 **Estimated Effort**: 3 hours  
 **Dependencies**: Monaco Editor or CodeMirror CDN

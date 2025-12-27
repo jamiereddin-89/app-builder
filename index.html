@@ -122,26 +122,42 @@ export default function App() {
   const [shareLink, setShareLink] = useState("");
   const [activeTab, setActiveTab] = useState("build");
   const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('darkMode');
-    return saved ? JSON.parse(saved) : false;
+    try {
+      const saved = localStorage.getItem('darkMode');
+      return saved ? JSON.parse(saved) : false;
+    } catch (error) {
+      console.warn('localStorage not available, using default dark mode setting');
+      return false;
+    }
   });
   const [activeCategory, setActiveCategory] = useState("All");
   const fileInputRef = useRef(null);
   
-  // Preview zoom state
+  // Preview zoom state - safely access localStorage only from parent window
   const [previewZoom, setPreviewZoom] = useState(() => {
-    if (selectedApp) {
-      const saved = localStorage.getItem(`previewZoom_${selectedApp._id}`);
-      return saved ? parseFloat(saved) : 1.0;
+    try {
+      if (selectedApp && window.parent === window) {
+        const saved = localStorage.getItem(`previewZoom_${selectedApp._id}`);
+        return saved ? parseFloat(saved) : 1.0;
+      }
+      return 1.0;
+    } catch (error) {
+      console.warn('localStorage not available, using default zoom');
+      return 1.0;
     }
-    return 1.0;
   });
   
-  // Monaco Editor ref
+  // Monaco Editor ref and initialization state
   const monacoEditorRef = useRef(null);
+  const [monacoInitialized, setMonacoInitialized] = useState(false);
+  const [monacoLoading, setMonacoLoading] = useState(false);
+  const [monacoError, setMonacoError] = useState(null);
   
   // Toast state management
   const [toasts, setToasts] = useState([]);
+  
+  // Help modal state
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Templates
   const templates = [
@@ -180,6 +196,79 @@ export default function App() {
   const removeToast = (id) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger shortcuts when typing in inputs or textareas
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') {
+        return;
+      }
+
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+      switch (e.key.toLowerCase()) {
+        case 'k':
+          if (isCtrlOrCmd) {
+            e.preventDefault();
+            // Focus search input if on apps tab, otherwise switch to apps tab first
+            if (activeTab !== 'apps') {
+              setActiveTab('apps');
+              // Small delay to ensure tab switch completes before focusing
+              setTimeout(() => {
+                const searchInput = document.querySelector('input[placeholder="Search apps..."]');
+                if (searchInput) searchInput.focus();
+              }, 100);
+            } else {
+              const searchInput = document.querySelector('input[placeholder="Search apps..."]');
+              if (searchInput) searchInput.focus();
+            }
+          }
+          break;
+
+        case 'b':
+          if (isCtrlOrCmd) {
+            e.preventDefault();
+            setActiveTab('build');
+          }
+          break;
+
+        case 's':
+          if (isCtrlOrCmd) {
+            e.preventDefault();
+            // Save/redeploy if editing
+            if (selectedApp && editCode && !generating) {
+              updateAndRedeploy();
+            }
+          }
+          break;
+
+        case 'escape':
+          e.preventDefault();
+          // Close any open modals
+          const modals = [
+            showExportModal, showShareModal, showVersions, 
+            showTemplates, showHelpModal
+          ];
+          if (showExportModal) setShowExportModal(false);
+          if (showShareModal) setShowShareModal(false);
+          if (showVersions) setShowVersions(false);
+          if (showTemplates) setShowTemplates(false);
+          if (showHelpModal) setShowHelpModal(false);
+          break;
+
+        case '?':
+          if (isCtrlOrCmd) {
+            e.preventDefault();
+            setShowHelpModal(true);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, selectedApp, editCode, generating, showExportModal, showShareModal, showVersions, showTemplates, showHelpModal]);
 
   // Tag management functions
   const addTag = () => {
@@ -288,13 +377,21 @@ export default function App() {
    }, []);
 
    useEffect(() => {
-     localStorage.setItem('darkMode', JSON.stringify(darkMode));
+     try {
+       localStorage.setItem('darkMode', JSON.stringify(darkMode));
+     } catch (error) {
+       console.warn('Failed to save dark mode setting to localStorage:', error);
+     }
    }, [darkMode]);
    
-   // Preview zoom effects
+   // Preview zoom effects - safe localStorage access
    useEffect(() => {
-     if (selectedApp) {
-       localStorage.setItem(`previewZoom_${selectedApp._id}`, previewZoom.toString());
+     try {
+       if (selectedApp && window.parent === window) {
+         localStorage.setItem(`previewZoom_${selectedApp._id}`, previewZoom.toString());
+       }
+     } catch (error) {
+       console.warn('Failed to save zoom level to localStorage:', error);
      }
    }, [previewZoom, selectedApp]);
    
@@ -337,88 +434,172 @@ export default function App() {
      setPreviewZoom(1.0);
    };
    
-   // Monaco Editor initialization
+   // Monaco Editor initialization with proper error handling
    useEffect(() => {
-     if (showCode && displayCode && monacoEditorRef.current) {
-       // Load Monaco Editor
-       require.config({ 
-         paths: { 
-           'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' 
-         } 
-       });
+     let editorInstance = null;
+     let isMounted = true;
+     
+     const initializeMonaco = () => {
+       if (!showCode || !displayCode || !monacoEditorRef.current || 
+           !monacoEditorRef.current.parentNode || !isMounted) {
+         setMonacoLoading(false);
+         return;
+       }
        
-       require(['vs/editor/editor.main'], function () {
-         // Create Monaco Editor
-         const editor = monaco.editor.create(monacoEditorRef.current, {
-           value: editCode || selectedApp?.code || '',
-           language: 'html',
-           theme: darkMode ? 'vs-dark' : 'vs-light',
-           fontSize: 14,
-           tabSize: 2,
-           lineNumbers: 'on',
-           minimap: { enabled: false },
-           wordWrap: 'on',
-           automaticLayout: true,
-           scrollBeyondLastLine: false,
-           folding: true,
-           autoIndent: 'advanced',
-           formatOnPaste: true,
-           formatOnType: true,
+       setMonacoLoading(true);
+       setMonacoError(null);
+       
+       try {
+         // Load Monaco Editor
+         require.config({ 
+           paths: { 
+             'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' 
+           } 
          });
          
-         // Update content when code changes
-         const updateContent = () => {
-           const currentContent = editor.getValue();
-           const newContent = editCode || selectedApp?.code || '';
-           if (currentContent !== newContent) {
-             editor.setValue(newContent);
+         require(['vs/editor/editor.main'], function () {
+           if (!isMounted || !monacoEditorRef.current || !monacoEditorRef.current.parentNode) {
+             setMonacoLoading(false);
+             return;
            }
-         };
-         
-         // Update editor when props change
-         if (editCode || selectedApp?.code) {
-           updateContent();
+           
+           try {
+             // Create Monaco Editor
+             editorInstance = monaco.editor.create(monacoEditorRef.current, {
+               value: editCode || selectedApp?.code || '',
+               language: 'html',
+               theme: darkMode ? 'vs-dark' : 'vs-light',
+               fontSize: 14,
+               tabSize: 2,
+               lineNumbers: 'on',
+               minimap: { enabled: false },
+               wordWrap: 'on',
+               automaticLayout: true,
+               scrollBeyondLastLine: false,
+               folding: true,
+               autoIndent: 'advanced',
+               formatOnPaste: true,
+               formatOnType: true,
+             });
+             
+             // Mark as initialized
+             if (isMounted) {
+               setMonacoInitialized(true);
+               setMonacoLoading(false);
+             }
+             
+             // Update content when code changes
+             const updateContent = () => {
+               if (!editorInstance || !isMounted) return;
+               
+               try {
+                 const currentContent = editorInstance.getValue();
+                 const newContent = editCode || selectedApp?.code || '';
+                 if (currentContent !== newContent) {
+                   editorInstance.setValue(newContent);
+                 }
+               } catch (error) {
+                 console.warn('Failed to update editor content:', error);
+               }
+             };
+             
+             // Update editor when props change
+             if (editCode || selectedApp?.code) {
+               updateContent();
+             }
+             
+             // Listen for changes and update state
+             const disposables = editorInstance.onDidChangeModelContent(() => {
+               if (!isMounted) return;
+               
+               try {
+                 setEditCode(editorInstance.getValue());
+               } catch (error) {
+                 console.warn('Failed to get editor value:', error);
+               }
+             });
+             
+             // Store editor instance
+             monacoEditorRef.current = editorInstance;
+             
+             // Cleanup function
+             return () => {
+               isMounted = false;
+               setMonacoInitialized(false);
+               setMonacoLoading(false);
+               if (editorInstance) {
+                 try {
+                   editorInstance.dispose();
+                 } catch (error) {
+                   console.warn('Failed to dispose editor:', error);
+                 }
+               }
+               if (disposables) {
+                 try {
+                   disposables.dispose();
+                 } catch (error) {
+                   console.warn('Failed to dispose disposables:', error);
+                 }
+               }
+             };
+           } catch (error) {
+             console.error('Failed to create Monaco editor:', error);
+             setMonacoError(error.message);
+             setMonacoLoading(false);
+             showToast('Failed to initialize code editor', 'error');
+           }
+         });
+       } catch (error) {
+         console.error('Failed to load Monaco editor:', error);
+         setMonacoError(error.message);
+         setMonacoLoading(false);
+         showToast('Failed to load code editor', 'error');
+       }
+     };
+     
+     // Small delay to ensure DOM is ready
+     const timeoutId = setTimeout(initializeMonaco, 200);
+     
+     return () => {
+       isMounted = false;
+       clearTimeout(timeoutId);
+       setMonacoLoading(false);
+       if (editorInstance) {
+         try {
+           editorInstance.dispose();
+         } catch (error) {
+           console.warn('Failed to dispose editor on cleanup:', error);
          }
-         
-         // Listen for changes and update state
-         editor.onDidChangeModelContent(() => {
-           setEditCode(editor.getValue());
-         });
-         
-         // Store editor instance
-         monacoEditorRef.current = editor;
-         
-         // Cleanup function
-         return () => {
-           if (editor) {
-             editor.dispose();
-           }
-         };
-       });
-     } else if (monacoEditorRef.current) {
-       // Cleanup when not showing code
-       monacoEditorRef.current.dispose();
-       monacoEditorRef.current = null;
-     }
-   }, [showCode, displayCode, darkMode, selectedApp]);
+       }
+     };
+   }, [showCode, displayCode]);
    
    // Update Monaco Editor theme when darkMode changes
    useEffect(() => {
-     if (monacoEditorRef.current) {
-       monaco.editor.setTheme(darkMode ? 'vs-dark' : 'vs-light');
+     try {
+       if (monacoEditorRef.current && monacoInitialized && typeof monaco !== 'undefined') {
+         monaco.editor.setTheme(darkMode ? 'vs-dark' : 'vs-light');
+       }
+     } catch (error) {
+       console.warn('Failed to update Monaco editor theme:', error);
      }
-   }, [darkMode]);
+   }, [darkMode, monacoInitialized]);
    
    // Update Monaco Editor content when editCode or selectedApp changes
    useEffect(() => {
-     if (monacoEditorRef.current && showCode) {
-       const currentContent = monacoEditorRef.current.getValue();
-       const newContent = editCode || selectedApp?.code || '';
-       if (currentContent !== newContent) {
-         monacoEditorRef.current.setValue(newContent);
+     try {
+       if (monacoEditorRef.current && showCode && monacoInitialized && 
+           typeof monacoEditorRef.current.getValue === 'function') {
+         const currentContent = monacoEditorRef.current.getValue();
+         const newContent = editCode || selectedApp?.code || '';
+         if (currentContent !== newContent) {
+           monacoEditorRef.current.setValue(newContent);
+         }
        }
+     } catch (error) {
+       console.warn('Failed to update Monaco editor content:', error);
      }
-   }, [editCode, selectedApp, showCode]);
+   }, [editCode, selectedApp, showCode, monacoInitialized]);
 
   const providers = ["All", ...new Set(models.map(m => m.provider))].sort();
   const filtered = provider === "All" ? models : models.filter(m => m.provider === provider);
@@ -897,6 +1078,10 @@ RULES:
                  className={`${neuBtn} rounded-full px-4 py-2 font-bold ${textPrimary} text-sm`}>
                  {darkMode ? "☀️" : "🌙"}
                </button>
+               <button onClick={() => setShowHelpModal(true)}
+                 className={`${neuBtn} rounded-full px-4 py-2 font-bold ${textPrimary} text-sm`}>
+                 ⌨️
+               </button>
                {user && (
                  <>
                    <button onClick={() => setShowAnalytics(!showAnalytics)}
@@ -1049,6 +1234,74 @@ RULES:
                 ))}
               </div>
               <button onClick={() => setShowTemplates(false)} className={`w-full ${neuBtnBlack} rounded-xl py-3 font-bold mt-4`}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Keyboard Shortcuts Help Modal */}
+        {showHelpModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowHelpModal(false)}>
+            <div className={`${neu} rounded-[24px] p-6 max-w-md w-full`} onClick={e => e.stopPropagation()}>
+              <h3 className={`font-black ${textPrimary} text-xl mb-4`}>⌨️ Keyboard Shortcuts</h3>
+              <div className="space-y-3">
+                <div className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
+                  <span className={`${textPrimary} font-medium`}>Focus Search</span>
+                  <div className="flex gap-1">
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>Ctrl</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>K</kbd>
+                    <span className={`${textSecondary} text-xs`}>or</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>⌘</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>K</kbd>
+                  </div>
+                </div>
+                <div className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
+                  <span className={`${textPrimary} font-medium`}>Switch to Build Tab</span>
+                  <div className="flex gap-1">
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>Ctrl</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>B</kbd>
+                    <span className={`${textSecondary} text-xs`}>or</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>⌘</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>B</kbd>
+                  </div>
+                </div>
+                <div className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
+                  <span className={`${textPrimary} font-medium`}>Save/Redeploy</span>
+                  <div className="flex gap-1">
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>Ctrl</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>S</kbd>
+                    <span className={`${textSecondary} text-xs`}>or</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>⌘</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>S</kbd>
+                  </div>
+                </div>
+                <div className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
+                  <span className={`${textPrimary} font-medium`}>Close Modals</span>
+                  <div className="flex gap-1">
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>Esc</kbd>
+                  </div>
+                </div>
+                <div className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
+                  <span className={`${textPrimary} font-medium`}>Show Help</span>
+                  <div className="flex gap-1">
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>Ctrl</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>?</kbd>
+                    <span className={`${textSecondary} text-xs`}>or</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>⌘</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>?</kbd>
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setShowHelpModal(false)} className={`w-full ${neuBtnBlack} rounded-xl py-3 font-bold mt-4`}>
                 Close
               </button>
             </div>
@@ -1403,14 +1656,42 @@ RULES:
                 <div className="h-[480px] bg-white">
                   {showCode && displayCode ? (
                     <div className="relative h-full">
-                      <div 
-                        id="monaco-editor" 
-                        className="w-full h-full"
-                        ref={monacoEditorRef}
-                      />
-                      <div className="absolute bottom-2 right-2 text-[#666] text-xs">
-                        {(editCode || selectedApp?.code || "").length} chars
-                      </div>
+                      {monacoLoading ? (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-center">
+                            <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${neuInset} flex items-center justify-center animate-spin`}>
+                              <span className="text-2xl">⚙️</span>
+                            </div>
+                            <div className={`font-black ${textPrimary} text-lg`}>Loading Editor...</div>
+                          </div>
+                        </div>
+                      ) : monacoError ? (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-center">
+                            <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${neuInset} flex items-center justify-center`}>
+                              <span className="text-2xl">⚠️</span>
+                            </div>
+                            <div className={`font-black ${textPrimary} text-lg mb-2`}>Editor Error</div>
+                            <div className={`${textSecondary} text-sm mb-4`}>{monacoError}</div>
+                            <button 
+                              onClick={() => setShowCode(false)}
+                              className={`${neuBtn} rounded-xl px-4 py-2 font-bold ${textPrimary} text-sm`}>
+                              Back to Preview
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div 
+                            id="monaco-editor" 
+                            className="w-full h-full"
+                            ref={monacoEditorRef}
+                          />
+                          <div className="absolute bottom-2 right-2 text-[#666] text-xs">
+                            {(editCode || selectedApp?.code || "").length} chars
+                          </div>
+                        </>
+                      )}
                     </div>
                   ) : displayCode ? (
                     <div className="w-full h-full overflow-auto" style={{
@@ -1422,6 +1703,17 @@ RULES:
                         srcDoc={editCode || selectedApp?.code}
                         className="w-full h-full border-0"
                         sandbox="allow-scripts allow-forms allow-modals allow-popups"
+                        onLoad={(e) => {
+                          try {
+                            // Ensure iframe can't access parent localStorage
+                            const iframeDoc = e.target?.contentDocument;
+                            if (iframeDoc) {
+                              iframeDoc.documentElement.setAttribute('data-sandboxed', 'true');
+                            }
+                          } catch (error) {
+                            console.warn('Cannot access iframe document:', error);
+                          }
+                        }}
                         style={{
                           width: `${100 / previewZoom}%`,
                           height: `${100 / previewZoom}%`,
