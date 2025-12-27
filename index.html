@@ -7,6 +7,7 @@
     <title>Made on Vibes DIY</title>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
     <style>
       body {
         margin: 0;
@@ -18,6 +19,39 @@
       #container {
         width: 100%;
         height: 100vh;
+      }
+      
+      /* Toast animations */
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+      }
+      
+      /* Monaco Editor Styles */
+      #monaco-editor {
+        width: 100% !important;
+        height: 100% !important;
+      }
+      
+      .monaco-editor {
+        border-radius: 0 !important;
       }
     </style>
   </head>
@@ -93,6 +127,21 @@ export default function App() {
   });
   const [activeCategory, setActiveCategory] = useState("All");
   const fileInputRef = useRef(null);
+  
+  // Preview zoom state
+  const [previewZoom, setPreviewZoom] = useState(() => {
+    if (selectedApp) {
+      const saved = localStorage.getItem(`previewZoom_${selectedApp._id}`);
+      return saved ? parseFloat(saved) : 1.0;
+    }
+    return 1.0;
+  });
+  
+  // Monaco Editor ref
+  const monacoEditorRef = useRef(null);
+  
+  // Toast state management
+  const [toasts, setToasts] = useState([]);
 
   // Templates
   const templates = [
@@ -112,6 +161,25 @@ export default function App() {
 
   const addLog = (msg) => setLog(prev => [...prev.slice(-16), `${new Date().toLocaleTimeString()}: ${msg}`]);
   const displayCode = editCode || selectedApp?.code || "";
+  
+  // Toast management functions
+  const showToast = (message, type = "success", duration = 3000) => {
+    const id = Date.now() + Math.random();
+    const newToast = { id, message, type };
+    
+    setToasts(prev => [...prev, newToast]);
+    
+    // Auto-dismiss after duration
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, duration);
+    
+    return id;
+  };
+  
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
 
   // Tag management functions
   const addTag = () => {
@@ -189,11 +257,11 @@ export default function App() {
     script.src = "https://js.puter.com/v2/";
     script.onload = async () => {
       setPuter(window.puter);
-      addLog("SDK ready");
+      showToast("SDK ready!", "success");
       if (window.puter.auth.isSignedIn()) {
         const u = await window.puter.auth.getUser();
         setUser(u);
-        addLog(`Welcome ${u.username}`);
+        showToast(`Welcome ${u.username}!`, "success");
       }
     };
     document.body.appendChild(script);
@@ -222,6 +290,135 @@ export default function App() {
    useEffect(() => {
      localStorage.setItem('darkMode', JSON.stringify(darkMode));
    }, [darkMode]);
+   
+   // Preview zoom effects
+   useEffect(() => {
+     if (selectedApp) {
+       localStorage.setItem(`previewZoom_${selectedApp._id}`, previewZoom.toString());
+     }
+   }, [previewZoom, selectedApp]);
+   
+   // Keyboard shortcuts for zoom
+   useEffect(() => {
+     const handleKeyDown = (e) => {
+       if (e.ctrlKey || e.metaKey) {
+         switch (e.key) {
+           case '=':
+           case '+':
+             e.preventDefault();
+             zoomIn();
+             break;
+           case '-':
+             e.preventDefault();
+             zoomOut();
+             break;
+           case '0':
+             e.preventDefault();
+             resetZoom();
+             break;
+         }
+       }
+     };
+     
+     window.addEventListener('keydown', handleKeyDown);
+     return () => window.removeEventListener('keydown', handleKeyDown);
+   }, [previewZoom, selectedApp]);
+   
+   // Zoom control functions
+   const zoomIn = () => {
+     setPreviewZoom(prev => Math.min(prev + 0.1, 3.0));
+   };
+   
+   const zoomOut = () => {
+     setPreviewZoom(prev => Math.max(prev - 0.1, 0.25));
+   };
+   
+   const resetZoom = () => {
+     setPreviewZoom(1.0);
+   };
+   
+   // Monaco Editor initialization
+   useEffect(() => {
+     if (showCode && displayCode && monacoEditorRef.current) {
+       // Load Monaco Editor
+       require.config({ 
+         paths: { 
+           'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' 
+         } 
+       });
+       
+       require(['vs/editor/editor.main'], function () {
+         // Create Monaco Editor
+         const editor = monaco.editor.create(monacoEditorRef.current, {
+           value: editCode || selectedApp?.code || '',
+           language: 'html',
+           theme: darkMode ? 'vs-dark' : 'vs-light',
+           fontSize: 14,
+           tabSize: 2,
+           lineNumbers: 'on',
+           minimap: { enabled: false },
+           wordWrap: 'on',
+           automaticLayout: true,
+           scrollBeyondLastLine: false,
+           folding: true,
+           autoIndent: 'advanced',
+           formatOnPaste: true,
+           formatOnType: true,
+         });
+         
+         // Update content when code changes
+         const updateContent = () => {
+           const currentContent = editor.getValue();
+           const newContent = editCode || selectedApp?.code || '';
+           if (currentContent !== newContent) {
+             editor.setValue(newContent);
+           }
+         };
+         
+         // Update editor when props change
+         if (editCode || selectedApp?.code) {
+           updateContent();
+         }
+         
+         // Listen for changes and update state
+         editor.onDidChangeModelContent(() => {
+           setEditCode(editor.getValue());
+         });
+         
+         // Store editor instance
+         monacoEditorRef.current = editor;
+         
+         // Cleanup function
+         return () => {
+           if (editor) {
+             editor.dispose();
+           }
+         };
+       });
+     } else if (monacoEditorRef.current) {
+       // Cleanup when not showing code
+       monacoEditorRef.current.dispose();
+       monacoEditorRef.current = null;
+     }
+   }, [showCode, displayCode, darkMode, selectedApp]);
+   
+   // Update Monaco Editor theme when darkMode changes
+   useEffect(() => {
+     if (monacoEditorRef.current) {
+       monaco.editor.setTheme(darkMode ? 'vs-dark' : 'vs-light');
+     }
+   }, [darkMode]);
+   
+   // Update Monaco Editor content when editCode or selectedApp changes
+   useEffect(() => {
+     if (monacoEditorRef.current && showCode) {
+       const currentContent = monacoEditorRef.current.getValue();
+       const newContent = editCode || selectedApp?.code || '';
+       if (currentContent !== newContent) {
+         monacoEditorRef.current.setValue(newContent);
+       }
+     }
+   }, [editCode, selectedApp, showCode]);
 
   const providers = ["All", ...new Set(models.map(m => m.provider))].sort();
   const filtered = provider === "All" ? models : models.filter(m => m.provider === provider);
@@ -231,7 +428,7 @@ export default function App() {
     await puter.auth.signIn();
     const u = await puter.auth.getUser();
     setUser(u);
-    addLog(`Welcome ${u.username}`);
+    showToast(`Welcome ${u.username}!`, "success");
   }
 
   function validateHTML(code) {
@@ -381,12 +578,12 @@ RULES:
       setSelectedTemplate(null);
       setTags([]);
       setGenerationStage("");
-      addLog("✅ Complete!");
+      showToast("App created and deployed successfully!", "success");
       window.open(hostedUrl, "_blank");
 
     } catch (err) {
       setGenerationStage("");
-      addLog(`❌ Error: ${err.message}`);
+      showToast(`Error: ${err.message}`, "error");
     }
     setGenerating(false);
   }
@@ -448,10 +645,10 @@ RULES:
       const updated = await database.get(selectedApp._id);
       setSelectedApp(updated);
       setEditCode("");
-      addLog(`✅ Updated to v${newVersion}`);
+      showToast(`App updated to version ${newVersion}!`, "success");
       window.open(hostedUrl, "_blank");
     } catch (err) {
-      addLog(`❌ Error: ${err.message}`);
+      showToast(`Update failed: ${err.message}`, "error");
     }
     setGenerating(false);
   }
@@ -485,9 +682,9 @@ RULES:
         setSelectedApp(null); 
         setEditCode(""); 
       }
-      addLog("✅ Deleted");
+      showToast("App deleted successfully!", "success");
     } catch (e) {
-      addLog(`❌ Error: ${e.message}`);
+      showToast(`Delete failed: ${e.message}`, "error");
     }
   }
 
@@ -519,7 +716,7 @@ RULES:
     if (app.appName && puter) {
       try {
         await puter.apps.launch(app.appName);
-        addLog(`Launched: ${app.appName}`);
+        showToast(`Launched ${app.appName}!`, "success");
       } catch (err) {
         window.open(app.hostedUrl, "_blank");
       }
@@ -544,7 +741,7 @@ RULES:
     a.download = `puter-apps-export-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    addLog("✅ Exported apps");
+    showToast("Apps exported successfully!", "success");
     setShowExportModal(false);
   }
 
@@ -557,7 +754,7 @@ RULES:
     a.download = `${app.appName || "app"}-export.json`;
     a.click();
     URL.revokeObjectURL(url);
-    addLog(`✅ Exported ${app.appName}`);
+    showToast(`Exported ${app.appName}!`, "success");
   }
 
   async function importApps(e) {
@@ -573,9 +770,9 @@ RULES:
         app.createdAt = Date.now();
         await database.put(app);
       }
-      addLog(`✅ Imported ${appsToImport.length} app(s)`);
+      showToast(`Imported ${appsToImport.length} app(s) successfully!`, "success");
     } catch (err) {
-      addLog(`❌ Import failed: ${err.message}`);
+      showToast(`Import failed: ${err.message}`, "error");
     }
     e.target.value = "";
     setShowExportModal(false);
@@ -594,7 +791,7 @@ RULES:
 
   function copyShareLink() {
     navigator.clipboard.writeText(shareLink);
-    addLog("✅ Link copied!");
+    showToast("Link copied to clipboard!", "success");
   }
 
   function selectTemplate(template) {
@@ -630,9 +827,60 @@ RULES:
   const textPrimary = darkMode ? "text-[#e8e8e8]" : "text-[#1a1a1a]";
   const textSecondary = darkMode ? "text-[#cccccc]" : "text-[#666]";
   const textMuted = darkMode ? "text-[#888]" : "text-[#888]";
+  
+  // Toast Component
+  const Toast = ({ toast, onRemove }) => {
+    const isSuccess = toast.type === "success";
+    const isError = toast.type === "error";
+    
+    const toastStyles = isSuccess 
+      ? "bg-green-500 text-white shadow-[inset_2px_2px_4px_#16a34a,inset_-2px_-2px_4px_#22c55e]"
+      : isError 
+      ? "bg-red-500 text-white shadow-[inset_2px_2px_4px_#dc2626,inset_-2px_-2px_4px_#ef4444]"
+      : neuInset;
+    
+    const icon = isSuccess ? "✅" : isError ? "❌" : "ℹ️";
+    
+    return (
+      <div 
+        className={`${toastStyles} rounded-2xl p-4 mb-3 flex items-center gap-3 transform transition-all duration-300 ease-in-out animate-in slide-in-from-right-full`}
+        style={{
+          animation: 'slideIn 0.3s ease-out forwards'
+        }}
+      >
+        <span className="text-xl">{icon}</span>
+        <span className="flex-1 font-medium">{toast.message}</span>
+        <button 
+          onClick={() => onRemove(toast.id)}
+          className="text-white hover:text-gray-200 transition-colors text-xl leading-none"
+        >
+          ×
+        </button>
+      </div>
+    );
+  };
+  
+  // Toast Container Component
+  const ToastContainer = () => {
+    if (toasts.length === 0) return null;
+    
+    return (
+      <div className="fixed top-4 right-4 z-50 max-w-sm w-full space-y-2">
+        {toasts.map(toast => (
+          <Toast 
+            key={toast.id} 
+            toast={toast} 
+            onRemove={removeToast} 
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
-    <div className={`min-h-screen ${bgMain} p-4 md:p-6 transition-colors duration-300`}>
+    <>
+      <ToastContainer />
+      <div className={`min-h-screen ${bgMain} p-4 md:p-6 transition-colors duration-300`}>
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header */}
@@ -1112,6 +1360,25 @@ RULES:
                         className={`${neuBtn} rounded-full px-3 py-2 font-bold text-xs ${textPrimary}`}>
                         📤
                       </button>
+                      
+                      {/* Zoom Controls */}
+                      <div className={`${neuInset} rounded-full px-3 py-2 flex items-center gap-2`}>
+                        <button onClick={zoomOut} disabled={previewZoom <= 0.25}
+                          className={`${neuBtn} rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold ${textPrimary} disabled:opacity-50`}>
+                          -
+                        </button>
+                        <span className={`font-mono text-xs ${textPrimary} min-w-[3rem] text-center`}>
+                          {Math.round(previewZoom * 100)}%
+                        </span>
+                        <button onClick={zoomIn} disabled={previewZoom >= 3.0}
+                          className={`${neuBtn} rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold ${textPrimary} disabled:opacity-50`}>
+                          +
+                        </button>
+                        <button onClick={resetZoom}
+                          className={`${neuBtn} rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold ${textPrimary}`}>
+                          ⌂
+                        </button>
+                      </div>
                     </>
                   )}
                   <button onClick={() => setShowCode(!showCode)} disabled={!displayCode}
@@ -1136,22 +1403,33 @@ RULES:
                 <div className="h-[480px] bg-white">
                   {showCode && displayCode ? (
                     <div className="relative h-full">
-                      <textarea
-                        value={editCode || selectedApp?.code || ""}
-                        onChange={e => setEditCode(e.target.value)}
-                        className="w-full h-full p-4 font-mono text-xs bg-[#1a1a1a] text-[#e8e8e8] resize-none border-0 outline-none"
-                        spellCheck={false}
+                      <div 
+                        id="monaco-editor" 
+                        className="w-full h-full"
+                        ref={monacoEditorRef}
                       />
                       <div className="absolute bottom-2 right-2 text-[#666] text-xs">
                         {(editCode || selectedApp?.code || "").length} chars
                       </div>
                     </div>
                   ) : displayCode ? (
-                    <iframe
-                      srcDoc={editCode || selectedApp?.code}
-                      className="w-full h-full border-0"
-                      sandbox="allow-scripts allow-forms allow-modals allow-popups"
-                    />
+                    <div className="w-full h-full overflow-auto" style={{
+                      transform: `scale(${previewZoom})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.2s ease-in-out'
+                    }}>
+                      <iframe
+                        srcDoc={editCode || selectedApp?.code}
+                        className="w-full h-full border-0"
+                        sandbox="allow-scripts allow-forms allow-modals allow-popups"
+                        style={{
+                          width: `${100 / previewZoom}%`,
+                          height: `${100 / previewZoom}%`,
+                          minWidth: `${100 / previewZoom}%`,
+                          minHeight: `${100 / previewZoom}%`
+                        }}
+                      />
+                    </div>
                   ) : (
                     <div className="h-full flex items-center justify-center">
                       <div className="text-center">
@@ -1244,6 +1522,7 @@ RULES:
         </div>
       </div>
     </div>
+    </>
   );
 }
       // prettier-ignore-end
