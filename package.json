@@ -1,0 +1,13 @@
+{
+  "name": "puter-app-factory",
+  "version": "1.0.0",
+  "description": "AI-powered web app builder integrated with Puter platform",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'No build step required - this is a standalone HTML application'",
+    "start": "echo 'Open index.html in a browser'"
+  },
+  "keywords": ["puter", "ai", "app-builder", "react", "fireproof"],
+  "author": "",
+  "license": "MIT"
+}
