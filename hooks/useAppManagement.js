@@ -520,6 +520,7 @@ RULES:
     versions,
     generating,
     generationStage,
+    database,
     
     // Toast initialization
     initToast,

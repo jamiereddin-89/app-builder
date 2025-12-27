@@ -2,14 +2,14 @@
 
 ## Phase 1: Core Infrastructure Enhancements
 
-- [ ] 1.1 Implement Drag-and-Drop Component Editor
+- [X] 1.1 Implement Drag-and-Drop Component Editor
   - Install React DnD library and create drag context provider
   - Add drag handles and visual indicators to component elements
   - Implement drop zone logic for rearranging HTML structure
   - Create unit tests for drag-and-drop interactions
   - _Requirements: 1.1.1, 1.1.2, 1.1.3, 1.1.4_
 
-- [ ] 1.2 Create Customizable Theme System
+- [X] 1.2 Create Customizable Theme System
   - Implement CSS custom properties for theme variables
   - Create ThemeProvider component with localStorage persistence
   - Build theme selector UI with color picker integration

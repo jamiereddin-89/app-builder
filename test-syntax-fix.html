@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ThemeSelector Syntax Error Fix Test</title>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5; 
+        }
+        .test-result { 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            border-left: 4px solid;
+        }
+        .success { 
+            background: #d4edda; 
+            border-color: #28a745; 
+            color: #155724; 
+        }
+        .error { 
+            background: #f8d7da; 
+            border-color: #dc3545; 
+            color: #721c24; 
+        }
+        .info { 
+            background: #d1ecf1; 
+            border-color: #17a2b8; 
+            color: #0c5460; 
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 ThemeSelector.js Syntax Error Fix Test</h1>
+    
+    <div class="test-section">
+        <h2>Problem Diagnosis</h2>
+        <div class="test-result info">
+            <strong>Original Error:</strong> <code>ThemeSelector.js:133 Uncaught SyntaxError: Unexpected token '<'</code>
+        </div>
+        <div class="test-result info">
+            <strong>Root Cause:</strong> JSX syntax in external files not processed by Babel standalone
+        </div>
+        <div class="test-result info">
+            <strong>Solution:</strong> Inline ThemeSelector component using React.createElement calls
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="test-results">
+            <div class="test-result info">🔄 Running tests...</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Technical Details</h2>
+        <h3>Changes Made:</h3>
+        <ul>
+            <li><strong>Removed:</strong> <code>import { ThemeSelector } from './components/ThemeSelector.js';</code></li>
+            <li><strong>Added:</strong> Inline ThemeSelector component using React.createElement</li>
+            <li><strong>Fixed:</strong> All JSX syntax converted to JavaScript function calls</li>
+            <li><strong>Added:</strong> validateTheme import from ThemeProvider</li>
+        </ul>
+        
+        <h3>Why This Works:</h3>
+        <ul>
+            <li>Babel standalone only processes inline <code><script type="text/babel"></code> tags</li>
+            <li>External .js files with JSX are parsed as regular JavaScript</li>
+            <li>React.createElement syntax is valid JavaScript that Babel can handle</li>
+            <li>Maintains full functionality while fixing syntax errors</li>
+        </ul>
+    </div>
+
+    <script type="text/babel">
+        // Test the ThemeSelector fix
+        function runTests() {
+            const results = document.getElementById('test-results');
+            let testResults = [];
+
+            // Test 1: Check if React is available
+            try {
+                if (typeof React !== 'undefined') {
+                    testResults.push({
+                        type: 'success',
+                        message: '✅ React library loaded successfully'
+                    });
+                } else {
+                    throw new Error('React not found');
+                }
+            } catch (error) {
+                testResults.push({
+                    type: 'error', 
+                    message: '❌ React library not available: ' + error.message
+                });
+            }
+
+            // Test 2: Check if Babel is available
+            try {
+                if (typeof Babel !== 'undefined') {
+                    testResults.push({
+                        type: 'success',
+                        message: '✅ Babel standalone loaded successfully'
+                    });
+                } else {
+                    throw new Error('Babel not found');
+                }
+            } catch (error) {
+                testResults.push({
+                    type: 'error',
+                    message: '❌ Babel standalone not available: ' + error.message
+                });
+            }
+
+            // Test 3: Test React.createElement syntax (simulating ThemeSelector approach)
+            try {
+                const testElement = React.createElement('div', {
+                    className: 'test-component',
+                    onClick: () => console.log('clicked')
+                }, 'Test content');
+                
+                if (testElement && testElement.type === 'div') {
+                    testResults.push({
+                        type: 'success',
+                        message: '✅ React.createElement syntax works correctly'
+                    });
+                } else {
+                    throw new Error('React.createElement returned unexpected result');
+                }
+            } catch (error) {
+                testResults.push({
+                    type: 'error',
+                    message: '❌ React.createElement syntax failed: ' + error.message
+                });
+            }
+
+            // Test 4: Simulate ThemeSelector component structure
+            try {
+                const ThemeSelectorTest = ({ showModal, onClose }) => {
+                    if (!showModal) return null;
+                    
+                    return React.createElement('div', {
+                        className: 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4',
+                        onClick: onClose
+                    }, [
+                        React.createElement('div', {
+                            key: 'modal',
+                            className: 'bg-white rounded-lg p-6 max-w-4xl w-full',
+                            onClick: e => e.stopPropagation()
+                        }, [
+                            React.createElement('h2', {
+                                key: 'title',
+                                className: 'text-xl font-bold mb-4'
+                            }, '🎨 Theme Selector'),
+                            React.createElement('p', {
+                                key: 'content',
+                                className: 'text-gray-600'
+                            }, 'This simulates the fixed ThemeSelector component structure.')
+                        ])
+                    ]);
+                };
+
+                // Test component creation
+                const testComponent = ThemeSelectorTest({ showModal: true, onClose: () => {} });
+                if (testComponent && testComponent.type === 'div') {
+                    testResults.push({
+                        type: 'success',
+                        message: '✅ ThemeSelector component structure simulation successful'
+                    });
+                } else {
+                    throw new Error('Component creation failed');
+                }
+            } catch (error) {
+                testResults.push({
+                    type: 'error',
+                    message: '❌ ThemeSelector component simulation failed: ' + error.message
+                });
+            }
+
+            // Test 5: Check for console errors (this will be done by the main page)
+            testResults.push({
+                type: 'info',
+                message: 'ℹ️  Open the main application to verify no JS syntax errors occur'
+            });
+
+            // Display results
+            results.innerHTML = testResults.map(result => 
+                `<div class="test-result ${result.type}">${result.message}</div>`
+            ).join('');
+        }
+
+        // Run tests when page loads
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>

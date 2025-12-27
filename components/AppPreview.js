@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ComponentEditor } from './ComponentEditor.js';
 
 /**
  * App preview component for displaying app code and live preview

@@ -1,0 +1,938 @@
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <div className={`min-h-screen ${bgMain} p-4 md:p-6 transition-colors duration-300`}>
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Header */}
+        <div className={`${neu} rounded-[24px] p-5`}>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+               <h1 className={`text-2xl md:text-3xl font-black ${textPrimary} flex items-center gap-2`}>
+                 <span className="text-[#dc2626]">⚡</span> PUTER APP FACTORY
+               </h1>
+               <p className={`${textSecondary} text-sm mt-1`}>{models.length} models • {apps.length} apps • {analytics.totalViews} views</p>
+             </div>
+            <div className="flex items-center gap-3">
+               <button onClick={() => setShowThemeSelector(true)}
+                 className={`${neuBtn} rounded-full px-4 py-2 font-bold ${textPrimary} text-sm`}>
+                 {darkMode ? "☀️" : "🌙"}
+               </button>
+               <button onClick={() => setShowHelpModal(true)}
+                 className={`${neuBtn} rounded-full px-4 py-2 font-bold ${textPrimary} text-sm`}>
+                 ⌨️
+               </button>
+               {user && (
+                 <>
+                   <button onClick={() => setShowAnalytics(!showAnalytics)}
+                     className={`${neuBtn} rounded-full px-4 py-2 font-bold ${textPrimary} text-sm`}>
+                     📊
+                   </button>
+                  <button onClick={() => setShowExportModal(true)}
+                    className={`${neuBtn} rounded-full px-4 py-2 font-bold ${textPrimary} text-sm`}>
+                    📦
+                  </button>
+                </>
+              )}
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <div className={`${neuInset} rounded-full px-4 py-2`}>
+                    <span className={`font-bold ${textPrimary} text-sm`}>👤 {user.username}</span>
+                  </div>
+                  <button onClick={() => puterSDK.signOut()}
+                    className={`${neuBtn} rounded-full px-4 py-2 font-bold ${textPrimary} text-sm`}>
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => puterSDK.signIn()} disabled={!puterSDK.sdkReady}
+                  className={`${neuBtnRed} rounded-full px-6 py-3 font-black disabled:opacity-50`}>
+                  Sign In Free
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Analytics Panel */}
+          {showAnalytics && (
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-6 gap-4">
+              {[
+                { label: "Total Apps", value: analytics.totalApps, icon: "📱" },
+                { label: "Favorites", value: analytics.favorites, icon: "⭐" },
+                { label: "Total Views", value: analytics.totalViews, icon: "👁️" },
+                { label: "Models Used", value: analytics.modelsUsed, icon: "🤖" },
+                { label: "Avg Code Size", value: `${(analytics.avgCodeSize / 1024).toFixed(1)}KB`, icon: "📄" },
+                { label: "Versions", value: versions.length, icon: "📚" },
+              ].map((stat, i) => (
+                <div key={i} className={`${neuInset} rounded-2xl p-4 text-center`}>
+                  <div className="text-2xl mb-1">{stat.icon}</div>
+                  <div className={`font-black ${textPrimary} text-xl`}>{stat.value}</div>
+                  <div className={`${textSecondary} text-xs`}>{stat.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Error Test Component */}
+        <ErrorTestComponent />
+
+        {/* Export/Import Modal */}
+        <ExportModal
+          showExportModal={showExportModal}
+          darkMode={darkMode}
+          onClose={() => setShowExportModal(false)}
+          onExportApps={exportApps}
+          onImportApps={importApps}
+          fileInputRef={fileInputRef}
+        />
+
+        {/* Share Modal */}
+        {showShareModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowShareModal(false)}>
+            <div className={`${neu} rounded-[24px] p-6 max-w-md w-full`} onClick={e => e.stopPropagation()}>
+              <h3 className={`font-black ${textPrimary} text-xl mb-4`}>🔗 Share App</h3>
+              
+              {/* Share Link Section */}
+              <div className={`${neuInset} rounded-xl p-3 mb-4`}>
+                <input value={shareLink} readOnly className={`w-full bg-transparent text-xs font-mono ${textPrimary} outline-none`} />
+              </div>
+              
+              {/* QR Code Section */}
+              <div className="mb-4">
+                <h4 className={`font-bold ${textPrimary} text-sm mb-3 flex items-center gap-2`}>
+                  📱 Mobile QR Code
+                  <span className={`${textSecondary} text-xs`}>(Scan to open on mobile)</span>
+                </h4>
+                
+                <div className={`${neuInset} rounded-xl p-4 flex flex-col items-center`}>
+                  {isGeneratingQR ? (
+                    <div className="flex flex-col items-center py-8">
+                      <div className={`w-12 h-12 mx-auto mb-3 rounded-full ${neuInset} flex items-center justify-center animate-spin`}>
+                        <span className="text-xl">⚙️</span>
+                      </div>
+                      <div className={`${textSecondary} text-sm`}>Generating QR Code...</div>
+                    </div>
+                  ) : qrCodeDataURL ? (
+                    <div className="text-center">
+                      <img 
+                        src={qrCodeDataURL} 
+                        alt="QR Code for app sharing" 
+                        className="mx-auto mb-3 border-2 border-gray-200 rounded-lg"
+                        style={{ width: '200px', height: '200px' }}
+                      />
+                      <button 
+                        onClick={downloadQRCode}
+                        className={`${neuBtn} rounded-xl py-2 px-4 font-bold ${textPrimary} text-sm flex items-center gap-2 mx-auto`}
+                      >
+                        💾 Download QR Code
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`${textMuted} text-center py-4`}>
+                      <div className="text-2xl mb-2">⚠️</div>
+                      <div className="text-sm">Failed to generate QR code</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button onClick={copyShareLink} className={`flex-1 ${neuBtnRed} rounded-xl py-3 font-bold`}>
+                  📋 Copy Link
+                </button>
+                <button onClick={() => setShowShareModal(false)} className={`flex-1 ${neuBtnBlack} rounded-xl py-3 font-bold`}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Version History Modal */}
+        {showVersions && selectedApp && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setShowVersions(false); resetDiffSelection(); }}>
+            <div className={`${neu} rounded-[24px] p-6 max-w-4xl w-full max-h-[90vh] overflow-hidden`} onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-black ${textPrimary} text-xl`}>📚 Version History & Diff Viewer</h3>
+                <button onClick={() => { setShowVersions(false); resetDiffSelection(); }} className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-sm ${textPrimary}`}>
+                  ×
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-[70vh] overflow-hidden">
+                {/* Version List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className={`font-bold ${textPrimary}`}>Versions</h4>
+                    {selectedOldVersion && selectedNewVersion && (
+                      <button onClick={resetDiffSelection} className={`${neuBtn} rounded-full px-3 py-1 text-xs font-bold ${textPrimary}`}>
+                        Clear Selection
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                    {appVersions.length === 0 ? (
+                      <p className={`${textSecondary} text-center py-4`}>No versions saved yet</p>
+                    ) : (
+                      appVersions.map(v => {
+                        const isOldSelected = selectedOldVersion?._id === v._id;
+                        const isNewSelected = selectedNewVersion?._id === v._id;
+                        const isDisabled = selectedOldVersion && !selectedNewVersion && isOldSelected;
+                        
+                        return (
+                          <div key={v._id} className={`${neuInset} rounded-xl p-3 transition-all ${
+                            isOldSelected || isNewSelected ? 'ring-2 ring-[#dc2626]' : ''
+                          }`}>
+                            <div className="flex justify-between items-center">
+                              <div className="flex-1">
+                                <div className={`font-bold ${textPrimary} flex items-center gap-2`}>
+                                  Version {v.version}
+                                  {isOldSelected && <span className="text-xs bg-[#dc2626] text-white px-2 py-1 rounded-full">Old</span>}
+                                  {isNewSelected && <span className="text-xs bg-[#22c55e] text-white px-2 py-1 rounded-full">New</span>}
+                                </div>
+                                <div className={`${textSecondary} text-xs`}>{new Date(v.createdAt).toLocaleString()}</div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => handleVersionSelect(v)}
+                                  disabled={isDisabled}
+                                  className={`${neuBtn} rounded-full px-3 py-1 text-xs font-bold ${textPrimary} disabled:opacity-50`}
+                                >
+                                  {isOldSelected || isNewSelected ? 'Selected' : 'Select'}
+                                </button>
+                                <button onClick={() => restoreVersion(v)} className={`${neuBtn} rounded-full px-3 py-1 text-xs font-bold ${textPrimary}`}>
+                                  Restore
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+                
+                {/* Diff Viewer */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className={`font-bold ${textPrimary}`}>Diff Viewer</h4>
+                    {selectedOldVersion && selectedNewVersion && (
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => setDiffViewMode('unified')}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                            diffViewMode === 'unified' 
+                              ? 'bg-[#dc2626] text-white shadow-[inset_2px_2px_4px_#b91c1c,inset_-2px_-2px_4px_#ef4444]' 
+                              : `${neuBtn} ${textPrimary}`
+                          }`}
+                        >
+                          Unified
+                        </button>
+                        <button 
+                          onClick={() => setDiffViewMode('side-by-side')}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                            diffViewMode === 'side-by-side' 
+                              ? 'bg-[#dc2626] text-white shadow-[inset_2px_2px_4px_#b91c1c,inset_-2px_-2px_4px_#ef4444]' 
+                              : `${neuBtn} ${textPrimary}`
+                          }`}
+                        >
+                          Side-by-Side
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {selectedOldVersion && selectedNewVersion ? (
+                    <VersionDiff 
+                      oldVersion={selectedOldVersion} 
+                      newVersion={selectedNewVersion} 
+                      viewMode={diffViewMode}
+                      darkMode={darkMode}
+                    />
+                  ) : (
+                    <div className={`${neuInset} rounded-xl p-8 text-center`}>
+                      <div className="text-4xl mb-4">🔍</div>
+                      <div className={`${textSecondary} mb-2`}>Select two versions to compare</div>
+                      <div className={`${textMuted} text-sm`}>
+                        Choose an "Old" version first, then a "New" version to see the differences
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Templates Modal */}
+        {showTemplates && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowTemplates(false)}>
+            <div className={`${neu} rounded-[24px] p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden`} onClick={e => e.stopPropagation()}>
+              <h3 className={`font-black ${textPrimary} text-xl mb-4`}>🎨 App Templates</h3>
+              
+              {/* Category Tabs */}
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                {getCategories().map(category => (
+                  <button key={category} onClick={() => setActiveCategory(category)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+                      activeCategory === category
+                        ? `${neuInset} text-[#dc2626]`
+                        : `${neuBtn} ${textPrimary}`}`}>
+                    {category === "All" ? "🌐 All" : category}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[55vh] overflow-y-auto">
+                {filteredTemplates.map(t => (
+                  <button key={t.id} onClick={() => selectTemplate(t)}
+                    className={`${neuBtn} rounded-xl p-4 text-left transition-all ${selectedTemplate?.id === t.id ? "ring-2 ring-[#dc2626]" : ""}`}>
+                    <div className="text-3xl mb-2">{t.icon}</div>
+                    <div className={`font-bold ${textPrimary} text-sm`}>{t.name}</div>
+                    <div className={`text-xs ${textSecondary} mt-1`}>{t.category}</div>
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setShowTemplates(false)} className={`w-full ${neuBtnBlack} rounded-xl py-3 font-bold mt-4`}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Keyboard Shortcuts Help Modal */}
+        {showHelpModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowHelpModal(false)}>
+            <div className={`${neu} rounded-[24px] p-6 max-w-md w-full`} onClick={e => e.stopPropagation()}>
+              <h3 className={`font-black ${textPrimary} text-xl mb-4`}>⌨️ Keyboard Shortcuts</h3>
+              <div className="space-y-3">
+                <div className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
+                  <span className={`${textPrimary} font-medium`}>Focus Search</span>
+                  <div className="flex gap-1">
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>Ctrl</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>K</kbd>
+                    <span className={`${textSecondary} text-xs`}>or</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>⌘</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>K</kbd>
+                  </div>
+                </div>
+                <div className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
+                  <span className={`${textPrimary} font-medium`}>Switch to Build Tab</span>
+                  <div className="flex gap-1">
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>Ctrl</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>B</kbd>
+                    <span className={`${textSecondary} text-xs`}>or</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>⌘</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>B</kbd>
+                  </div>
+                </div>
+                <div className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
+                  <span className={`${textPrimary} font-medium`}>Save/Redeploy</span>
+                  <div className="flex gap-1">
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>Ctrl</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>S</kbd>
+                    <span className={`${textSecondary} text-xs`}>or</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>⌘</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>S</kbd>
+                  </div>
+                </div>
+                <div className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
+                  <span className={`${textPrimary} font-medium`}>Close Modals</span>
+                  <div className="flex gap-1">
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>Esc</kbd>
+                  </div>
+                </div>
+                <div className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
+                  <span className={`${textPrimary} font-medium`}>Show Help</span>
+                  <div className="flex gap-1">
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>Ctrl</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>?</kbd>
+                    <span className={`${textSecondary} text-xs`}>or</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>⌘</kbd>
+                    <span className={`${textSecondary} text-xs`}>+</span>
+                    <kbd className={`px-2 py-1 rounded text-xs font-mono ${darkMode ? "bg-[#1a1a1a]" : "bg-[#fff]"} border`}>?</kbd>
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setShowHelpModal(false)} className={`w-full ${neuBtnBlack} rounded-xl py-3 font-bold mt-4`}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!user ? (
+          <div className={`${neu} rounded-[32px] p-12 text-center`}>
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-[#dc2626] flex items-center justify-center shadow-[inset_4px_4px_8px_#b91c1c,inset_-4px_-4px_8px_#ef4444]">
+              <span className="text-5xl">🚀</span>
+            </div>
+            <h2 className={`text-3xl font-black ${textPrimary} mb-3`}>Build & Deploy Puter Apps</h2>
+            <p className={`${textSecondary} mb-8 max-w-md mx-auto`}>
+              Describe your app → AI builds it → Deploy as a real Puter app with live URL
+            </p>
+            <button onClick={() => puterSDK.signIn()} disabled={!puterSDK.sdkReady}
+              className={`${neuBtnRed} rounded-full px-10 py-4 font-black text-lg disabled:opacity-50`}>
+              Get Started Free
+            </button>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-3 gap-6">
+            
+            {/* Left Panel */}
+            <div className="space-y-6">
+              {/* Tabs */}
+              <div className={`${neu} rounded-[24px] p-2 flex gap-2`}>
+                {[
+                  { id: "build", label: "Build", icon: "🔨" },
+                  { id: "apps", label: "Apps", icon: "📱" },
+                ].map(tab => (
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${
+                      activeTab === tab.id ? `${neuInset} text-[#dc2626]` : `${neuBtn} ${textPrimary}`}`}>
+                    {tab.icon} {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {activeTab === "build" && (
+                <div className={`${neu} rounded-[24px] p-5`}>
+                  <button onClick={() => setShowTemplates(true)}
+                    className={`w-full ${neuBtn} rounded-xl py-3 font-bold ${textPrimary} mb-4 flex items-center justify-center gap-2`}>
+                    🎨 Choose Template
+                  </button>
+
+                  {selectedTemplate && (
+                    <div className={`${neuInset} rounded-xl p-3 mb-4 flex items-center gap-3`}>
+                      <span className="text-2xl">{selectedTemplate.icon}</span>
+                      <div>
+                        <div className={`font-bold ${textPrimary} text-sm`}>{selectedTemplate.name}</div>
+                        <button onClick={() => { setSelectedTemplate(null); setPrompt(""); }} className="text-[#dc2626] text-xs">Clear</button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="mb-4">
+                    <label className={`font-black ${textPrimary} text-xs uppercase tracking-wider mb-2 block`}>Provider</label>
+                    <div className="flex flex-wrap gap-2">
+                      {providers.slice(0, 6).map(p => (
+                        <button key={p} onClick={() => setProvider(p)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                            provider === p
+                              ? "bg-[#dc2626] text-white shadow-[inset_2px_2px_4px_#b91c1c,inset_-2px_-2px_4px_#ef4444]"
+                              : `${neuBtn} ${textPrimary}`}`}>
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className={`font-black ${textPrimary} text-xs uppercase tracking-wider mb-2 block`}>Model</label>
+                    <div className={`${neuInset} rounded-2xl p-1`}>
+                      <select value={model} onChange={e => setModel(e.target.value)}
+                        className={`w-full p-3 bg-transparent font-mono text-sm ${textPrimary} border-0 outline-none`}>
+                        {filtered.map(m => <option key={m.id} value={m.id}>{m.id}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className={`font-black ${textPrimary} text-xs uppercase tracking-wider mb-2 block`}>App Description</label>
+                    <div className={`${neuInset} rounded-2xl p-1`}>
+                      <textarea value={prompt} onChange={e => setPrompt(e.target.value)}
+                        placeholder="Describe your app in detail..."
+                        className={`w-full h-24 p-3 bg-transparent font-mono text-sm ${textPrimary} resize-none border-0 outline-none placeholder-[#999]`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label className={`font-black ${textPrimary} text-xs uppercase tracking-wider mb-2 block`}>App Name</label>
+                      <div className={`${neuInset} rounded-xl p-1`}>
+                        <input value={appName} onChange={e => setAppName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                          placeholder="my-app"
+                          className={`w-full p-2 bg-transparent font-mono text-sm ${textPrimary} border-0 outline-none placeholder-[#999]`}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={`font-black ${textPrimary} text-xs uppercase tracking-wider mb-2 block`}>Title</label>
+                      <div className={`${neuInset} rounded-xl p-1`}>
+                        <input value={appTitle} onChange={e => setAppTitle(e.target.value)}
+                          placeholder="My App"
+                          className={`w-full p-2 bg-transparent text-sm ${textPrimary} border-0 outline-none placeholder-[#999]`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tags Input */}
+                  <div className="mb-4">
+                    <label className={`font-black ${textPrimary} text-xs uppercase tracking-wider mb-2 block`}>Tags</label>
+                    <div className={`${neuInset} rounded-2xl p-1`}>
+                      <div className="flex flex-wrap gap-2 p-2">
+                        {tags.map((tag, index) => (
+                          <div key={index} className={`flex items-center gap-2 ${neuBtn} rounded-full px-3 py-1 text-sm`}>
+                            <span className={textPrimary}>{tag}</span>
+                            <button onClick={(e) => { e.stopPropagation(); removeTag(tag); }}
+                              className="text-[#dc2626] hover:text-[#ef4444] transition-colors">
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex-1 min-w-[120px]">
+                          <input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && addTag()}
+                            placeholder="Add tag..."
+                            className={`w-full p-2 bg-transparent text-sm ${textPrimary} border-0 outline-none placeholder-[#999]`}
+                          />
+                        </div>
+                        <button onClick={addTag}
+                          className={`${neuBtnRed} rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold`}>
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button onClick={() => handleBuildAndDeploy()} disabled={generating || !prompt.trim()}
+                    className={`w-full ${neuBtnRed} rounded-2xl py-4 font-black text-lg disabled:opacity-50`}>
+                    {generating ? "⏳ Building..." : "🚀 Build & Deploy"}
+                  </button>
+                </div>
+              )}
+
+              {activeTab === "apps" && (
+                <div className={`${neu} rounded-[24px] overflow-hidden`}>
+                  {/* Search & Filters */}
+                  <div className="p-4 space-y-3">
+                    <div className={`${neuInset} rounded-xl p-1 flex items-center`}>
+                      <span className="pl-3 text-[#999]">🔍</span>
+                      <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                        placeholder="Search apps..."
+                        className={`flex-1 p-2 bg-transparent text-sm ${textPrimary} border-0 outline-none placeholder-[#999]`}
+                      />
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={() => setFilterFavorites(!filterFavorites)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold ${filterFavorites ? "bg-[#dc2626] text-white" : neuBtn + " " + textPrimary}`}>
+                        ⭐ Favorites
+                      </button>
+                      <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+                        className={`${neuBtn} rounded-full px-3 py-1.5 text-xs font-bold ${textPrimary} outline-none`}>
+                        <option value="date">Recent</option>
+                        <option value="name">Name</option>
+                        <option value="views">Views</option>
+                      </select>
+                      <button onClick={() => setBulkMode(!bulkMode)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold ${bulkMode ? "bg-[#1a1a1a] text-white" : neuBtn + " " + textPrimary}`}>
+                        ☑️ Select
+                      </button>
+                    </div>
+                    {bulkMode && selectedApps.size > 0 && (
+                      <button onClick={handleBulkDelete} className={`${neuBtnRed} rounded-xl w-full py-2 text-sm font-bold text-white`}>
+                        🗑️ Delete {selectedApps.size} Selected
+                      </button>
+                    )}
+                    {/* Tag Filters */}
+                    {getAllTags().length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {getAllTags().map(tag => (
+                          <button key={tag} onClick={() => toggleTagFilter(tag)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                              selectedTags.includes(tag)
+                                ? "bg-[#dc2626] text-white"
+                                : neuBtn + " " + textPrimary}`}>
+                            #{tag}
+                          </button>
+                        ))}
+                        {selectedTags.length > 0 && (
+                          <button onClick={() => setSelectedTags([])}
+                            className={`${neuBtnRed} rounded-full px-3 py-1.5 text-xs font-bold`}>
+                            Clear Filters
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Virtualized App List */}
+                  <div className="max-h-96">
+                    {filteredApps.length === 0 ? (
+                      <div className={`p-6 ${textMuted} text-center`}>
+                        {deferredSearchQuery || filterFavorites ? "No matching apps" : "No apps yet"}
+                      </div>
+                    ) : (
+                      <AppList
+                        height={384} // max-h-96 = 24rem = 384px
+                        itemCount={filteredApps.length}
+                        itemSize={140} // Approximate height for each app card
+                        itemData={filteredApps}
+                        className="overflow-y-auto"
+                      >
+                        {({ index, style, data }) => {
+                          const app = data[index];
+                          return (
+                            <div
+                              key={app._id}
+                              style={style}
+                              onClick={() => { if (!bulkMode) { setSelectedApp(app); setEditCode(""); setTags(app.tags || []); }}}
+                              className={`p-4 border-b border-[#d0d0d0] cursor-pointer transition-all ${
+                                selectedApp?._id === app._id ? neuInset : "hover:bg-[#ddd]"
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                {bulkMode && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedApps.has(app._id)}
+                                    onChange={e => {
+                                      e.stopPropagation();
+                                      const newSet = new Set(selectedApps);
+                                      e.target.checked ? newSet.add(app._id) : newSet.delete(app._id);
+                                      setSelectedApps(newSet);
+                                    }}
+                                    className="mt-1 w-5 h-5"
+                                  />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className={`font-black ${textPrimary} flex items-center gap-2`}>
+                                    <span className="text-[#dc2626]">📱</span>
+                                    {app.appTitle || app.appName}
+                                    {app.favorite && <span>⭐</span>}
+                                  </div>
+                                  <div className={`${textSecondary} text-xs flex items-center gap-2 mt-1`}>
+                                    <span>v{app.version || 1}</span>
+                                    <span>•</span>
+                                    <span>👁️ {app.views || 0}</span>
+                                  </div>
+                                  <div className={`${textMuted} text-xs mt-1 truncate`}>{app.prompt}</div>
+                                  {/* Tag Chips */}
+                                  {app.tags && app.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                      {app.tags.map((tag, tagIndex) => (
+                                        <span key={tagIndex} className={`px-2 py-1 rounded-full text-xs font-bold ${neuBtn} ${textSecondary}`}>
+                                          #{tag}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                {!bulkMode && (
+                                  <div className="flex flex-col gap-1">
+                                    <button
+                                      onClick={e => handleToggleFavorite(app, e)}
+                                      className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-sm ${textPrimary}`}
+                                    >
+                                      {app.favorite ? "⭐" : "☆"}
+                                    </button>
+                                    <button
+                                      onClick={e => handleDuplicateApp(app, e)}
+                                      className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-xs`}
+                                      title="Duplicate"
+                                    >
+                                      📋
+                                    </button>
+                                    <button
+                                      onClick={e => handleLaunchApp(app, e)}
+                                      className={`${neuBtnBlack} rounded-full w-8 h-8 flex items-center justify-center text-xs`}
+                                    >
+                                      ▶
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }}
+                      </AppList>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Log */}
+              {log.length > 0 && (
+                <div className={`${neuInset} rounded-2xl p-4`}>
+                  <div className={`${textSecondary} font-mono text-xs space-y-1 max-h-32 overflow-y-auto`}>
+                    {log.map((l, i) => (
+                      <div key={i} className={l.includes("✅") ? "text-green-600" : l.includes("❌") ? "text-red-600" : ""}>
+                        {l}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Preview Panel */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* AI Chat Panel */}
+              {selectedApp && (
+                <ChatPanel
+                  isChatVisible={isChatVisible}
+                  chatHistory={chatHistory}
+                  chatInput={chatInput}
+                  isChatLoading={isChatLoading}
+                  darkMode={darkMode}
+                  onSetIsChatVisible={setIsChatVisible}
+                  onSetChatInput={setChatInput}
+                  onIterateOnApp={iterateOnApp}
+                  onApplySuggestion={applySuggestion}
+                />
+              )}
+              <div className={`${neu} rounded-[24px] overflow-hidden`}>
+                <div className="bg-[#1a1a1a] p-4 flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#dc2626]"></div>
+                      <div className="w-3 h-3 rounded-full bg-[#fbbf24]"></div>
+                      <div className="w-3 h-3 rounded-full bg-[#22c55e]"></div>
+                    </div>
+                    <span className="text-white font-black text-sm">
+                      {selectedApp?.appTitle || selectedApp?.appName || "PREVIEW"}
+                    </span>
+                    {selectedApp && (
+                      <span className="text-[#cccccc] text-xs">v{selectedApp.version || 1}</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                  {selectedApp && (
+                    <>
+                      <button onClick={() => setShowVersions(true)}
+                        className={`${neuBtn} rounded-full px-3 py-2 font-bold text-xs ${textPrimary}`}>
+                        📚
+                      </button>
+                      <button onClick={() => generateShareLink(selectedApp)}
+                        className={`${neuBtn} rounded-full px-3 py-2 font-bold text-xs ${textPrimary}`}>
+                        🔗
+                      </button>
+                      <button onClick={() => exportSingleApp(selectedApp)}
+                        className={`${neuBtn} rounded-full px-3 py-2 font-bold text-xs ${textPrimary}`}>
+                        📤
+                      </button>
+                      
+                      {/* Zoom Controls */}
+                      <div className={`${neuInset} rounded-full px-3 py-2 flex items-center gap-2`}>
+                        <button onClick={zoomOut} disabled={previewZoom <= 0.25}
+                          className={`${neuBtn} rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold ${textPrimary} disabled:opacity-50`}>
+                          -
+                        </button>
+                        <span className={`font-mono text-xs ${textPrimary} min-w-[3rem] text-center`}>
+                          {Math.round(previewZoom * 100)}%
+                        </span>
+                        <button onClick={zoomIn} disabled={previewZoom >= 3.0}
+                          className={`${neuBtn} rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold ${textPrimary} disabled:opacity-50`}>
+                          +
+                        </button>
+                        <button onClick={resetZoom}
+                          className={`${neuBtn} rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold ${textPrimary}`}>
+                          ⌂
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  <button onClick={() => setShowCode(!showCode)} disabled={!displayCode}
+                    className={`${neuBtn} rounded-full px-4 py-2 font-bold text-xs ${textPrimary} disabled:opacity-50`}>
+                    {showCode ? "Preview" : "</>"}
+                  </button>
+                  <button onClick={() => setIsChatVisible(!isChatVisible)}
+                    className={`${neuBtn} rounded-full px-4 py-2 font-bold text-xs ${isChatVisible ? "bg-[#22c55e] text-white" : textPrimary} disabled:opacity-50`}>
+                    💬
+                  </button>
+                  {selectedApp && (
+                    <button onClick={e => handleLaunchApp(selectedApp, e)}
+                      className={`${neuBtnBlack} rounded-full px-4 py-2 font-bold text-xs`}>
+                      Launch
+                    </button>
+                  )}
+                  {selectedApp && editCode && (
+                    <button onClick={handleUpdateAndRedeploy} disabled={generating}
+                      className={`${neuBtnRed} rounded-full px-4 py-2 font-bold text-xs disabled:opacity-50`}>
+                      Redeploy
+                    </button>
+                  )}
+                </div>
+                </div>
+                
+                <div className="h-[480px] bg-white">
+                  {showCode && displayCode ? (
+                    <div className="relative h-full">
+                      {monacoLoading ? (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-center">
+                            <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${neuInset} flex items-center justify-center animate-spin`}>
+                              <span className="text-2xl">⚙️</span>
+                            </div>
+                            <div className={`font-black ${textPrimary} text-lg`}>Loading Editor...</div>
+                          </div>
+                        </div>
+                      ) : monacoError ? (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-center">
+                            <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${neuInset} flex items-center justify-center`}>
+                              <span className="text-2xl">⚠️</span>
+                            </div>
+                            <div className={`font-black ${textPrimary} text-lg mb-2`}>Editor Error</div>
+                            <div className={`${textSecondary} text-sm mb-4`}>{monacoError}</div>
+                            <button 
+                              onClick={() => setShowCode(false)}
+                              className={`${neuBtn} rounded-xl px-4 py-2 font-bold ${textPrimary} text-sm`}>
+                              Back to Preview
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div 
+                            id="monaco-editor" 
+                            className="w-full h-full"
+                            ref={monacoEditorRef}
+                          />
+                          <div className="absolute bottom-2 right-2 text-[#666] text-xs">
+                            {(editCode || selectedApp?.code || "").length} chars
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : displayCode ? (
+                    <div className="w-full h-full overflow-auto" style={{
+                      transform: `scale(${previewZoom})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.2s ease-in-out'
+                    }}>
+                      <iframe
+                        srcDoc={editCode || selectedApp?.code}
+                        className="w-full h-full border-0"
+                        sandbox="allow-scripts allow-forms allow-modals allow-popups"
+                        onLoad={(e) => {
+                          try {
+                            // Ensure iframe can't access parent localStorage
+                            const iframeDoc = e.target?.contentDocument;
+                            if (iframeDoc) {
+                              iframeDoc.documentElement.setAttribute('data-sandboxed', 'true');
+                            }
+                          } catch (error) {
+                            console.warn('Cannot access iframe document:', error);
+                          }
+                        }}
+                        style={{
+                          width: `${100 / previewZoom}%`,
+                          height: `${100 / previewZoom}%`,
+                          minWidth: `${100 / previewZoom}%`,
+                          minHeight: `${100 / previewZoom}%`
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        {generating ? (
+                          <div className={`w-20 h-20 mx-auto mb-4 rounded-full ${neuInset} flex items-center justify-center`}>
+                            <span className="text-3xl animate-spin">⚙️</span>
+                          </div>
+                        ) : (
+                          <div className={`w-20 h-20 mx-auto mb-4 rounded-full ${neu} flex items-center justify-center`}>
+                            <span className="text-3xl">📱</span>
+                          </div>
+                        )}
+                        <div className={`font-black ${textPrimary} text-lg`}>
+                          {generating ? "BUILDING..." : "APP PREVIEW"}
+                        </div>
+                        {generating && generationStage && (
+                          <div className={`${textSecondary} text-sm mt-2`}>{generationStage}</div>
+                        )}
+                        {!generating && (
+                          <div className={`${textMuted} text-sm mt-2`}>Build or select an app</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* App Details Card */}
+              {selectedApp && (
+                <div className={`${neu} rounded-[24px] p-5`}>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className={`font-black ${textPrimary} text-xl flex items-center gap-2`}>
+                        <span className="text-[#dc2626]">📱</span>
+                        {selectedApp.appTitle || selectedApp.appName}
+                        {selectedApp.favorite && <span>⭐</span>}
+                      </h3>
+                      <div className={`${textSecondary} text-sm mt-3 space-y-1`}>
+                        <div className="flex gap-4 flex-wrap">
+                          <span><strong>ID:</strong> <span className="font-mono">{selectedApp.appName}</span></span>
+                          <span><strong>Version:</strong> {selectedApp.version || 1}</span>
+                          <span><strong>Views:</strong> {selectedApp.views || 0}</span>
+                        </div>
+                        <div><strong>URL:</strong> <a href={selectedApp.hostedUrl} target="_blank" className="text-[#dc2626] hover:underline">{selectedApp.hostedUrl}</a></div>
+                        <div><strong>Model:</strong> {selectedApp.model}</div>
+                        {/* Tags in App Details */}
+                        {selectedApp.tags && selectedApp.tags.length > 0 && (
+                          <div className="mt-2">
+                            <strong>Tags:</strong>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {selectedApp.tags.map((tag, tagIndex) => (
+                                <span key={tagIndex} className={`px-3 py-1 rounded-full text-xs font-bold ${neuBtn} ${textPrimary}`}>
+                                  #{tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className={`${textMuted} text-xs mt-2`}>{selectedApp.prompt}</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={e => handleToggleFavorite(selectedApp, e)}
+                        className={`${neuBtn} rounded-full w-12 h-12 flex items-center justify-center text-xl ${textPrimary}`}>
+                        {selectedApp.favorite ? "⭐" : "☆"}
+                      </button>
+                      <button onClick={e => handleDuplicateApp(selectedApp, e)}
+                        className={`${neuBtn} rounded-full w-12 h-12 flex items-center justify-center text-xl ${textPrimary}`}
+                        title="Duplicate App">
+                        📋
+                      </button>
+                      <button onClick={e => handleLaunchApp(selectedApp, e)}
+                        className={`${neuBtnRed} rounded-2xl px-6 py-3 font-black`}>
+                        🚀 Launch
+                      </button>
+                      <button onClick={e => handleDeleteApp(selectedApp, e)}
+                        className={`${neuBtn} rounded-full w-12 h-12 flex items-center justify-center text-xl text-[#dc2626]`}>
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="text-center py-4">
+          <div className={`inline-flex items-center gap-2 ${textMuted} text-sm`}>
+            <span className="w-2 h-2 rounded-full bg-[#dc2626]"></span>
+            Powered by Puter
+            <span className="w-2 h-2 rounded-full bg-[#1a1a1a]"></span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Theme Selector Modal */}
+      <ThemeSelector
+        showModal={showThemeSelector}
+        onClose={() => setShowThemeSelector(false)}
+      />
+    </div>
+  );
