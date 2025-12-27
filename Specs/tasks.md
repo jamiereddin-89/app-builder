@@ -1,12 +1,12 @@
-# Puter App Factory - Implementation Tasks
+### [ ] Implement Task 2.2: Template Categories
+Organize the 12 app templates into logical categories (Productivity, Utilities, Entertainment, etc.) and modify the template modal to display them with category tabs or sections for easy navigation. Update the template selection logic accordingly.
 
-## 1. Critical Bug Fixes
-
-### [X] Task 1.1: Directory Cleanup Implementation
-**Priority**: HIGH  
-**Estimated Effort**: 2 hours  
-**Dependencies**: None
-
+#### Steps:
+1. Create templateCategories object grouping templates by category
+2. Add selectedCategory state variable
+3. Modify template modal to display category tabs
+4. Update template display logic to filter by selected category
+5. Test category navigation and template selection
 **Acceptance Criteria**:
 - [ ] Old directories deleted on app update
 - [ ] Old directories deleted on app deletion
@@ -64,7 +64,7 @@
 
 ## 2. Feature Enhancements - High Priority
 
-### Task 2.1: Dark Mode Support
+### [X] Task 2.1: Dark Mode Support
 **Priority**: MEDIUM  
 **Estimated Effort**: 4 hours  
 **Dependencies**: None
@@ -89,7 +89,7 @@
 
 ---
 
-### Task 2.2: Template Categories
+### [X] Task 2.2: Template Categories
 **Priority**: LOW  
 **Estimated Effort**: 2 hours  
 **Dependencies**: None
@@ -110,7 +110,7 @@
 
 ---
 
-### Task 2.3: Tag System Implementation
+### [X] Task 2.3: Tag System Implementation
 **Priority**: MEDIUM  
 **Estimated Effort**: 3 hours  
 **Dependencies**: None
