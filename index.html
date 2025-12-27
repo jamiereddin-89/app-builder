@@ -14,6 +14,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
     <script src="https://unpkg.com/react-window/umd/react-window.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
       body {
         margin: 0;
@@ -147,6 +149,8 @@ export default function App() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareLink, setShareLink] = useState("");
+  const [qrCodeDataURL, setQRCodeDataURL] = useState("");
+  const [isGeneratingQR, setIsGeneratingQR] = useState(false);
   const [activeTab, setActiveTab] = useState("build");
   const [darkMode, setDarkMode] = useState(() => {
     try {
@@ -185,6 +189,18 @@ export default function App() {
   
   // Help modal state
   const [showHelpModal, setShowHelpModal] = useState(false);
+  
+  // Version diff state
+  const [selectedOldVersion, setSelectedOldVersion] = useState(null);
+  const [selectedNewVersion, setSelectedNewVersion] = useState(null);
+  const [diffViewMode, setDiffViewMode] = useState('unified');
+
+  // AI Chat state
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatVisible, setIsChatVisible] = useState(false);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
 
   // Templates
   const templates = [
@@ -204,6 +220,183 @@ export default function App() {
 
   const addLog = (msg) => setLog(prev => [...prev.slice(-16), `${new Date().toLocaleTimeString()}: ${msg}`]);
   const displayCode = editCode || selectedApp?.code || "";
+
+  // Chat history persistence functions
+  const saveChatHistory = (appId, history) => {
+    try {
+      localStorage.setItem(`chatHistory_${appId}`, JSON.stringify(history));
+    } catch (error) {
+      console.warn('Failed to save chat history:', error);
+    }
+  };
+
+  const loadChatHistory = (appId) => {
+    try {
+      const saved = localStorage.getItem(`chatHistory_${appId}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.warn('Failed to load chat history:', error);
+      return [];
+    }
+  };
+
+  // Load chat history when selected app changes
+  useEffect(() => {
+    if (selectedApp?._id) {
+      const history = loadChatHistory(selectedApp._id);
+      setChatHistory(history);
+    } else {
+      setChatHistory([]);
+    }
+  }, [selectedApp?._id]);
+
+  // Save chat history when it changes
+  useEffect(() => {
+    if (selectedApp?._id && chatHistory.length > 0) {
+      saveChatHistory(selectedApp._id, chatHistory);
+    }
+  }, [chatHistory, selectedApp?._id]);
+
+  // AI Chat function for iterative edits
+  const iterateOnApp = async (message) => {
+    if (!selectedApp || !puter || !message.trim()) return;
+    
+    setIsChatLoading(true);
+    
+    try {
+      // Add user message to history
+      const userMessage = { role: "user", content: message, timestamp: Date.now() };
+      setChatHistory(prev => [...prev, userMessage]);
+      setChatInput("");
+      
+      addLog("Processing AI chat request...");
+      
+      // Prepare system prompt for code iteration
+      const systemPrompt = `You are an expert web developer helping improve an existing app.
+You are given:
+1. Current app code
+2. User feedback/suggestions
+3. Previous conversation context
+
+Your task:
+- Analyze the current code
+- Provide specific, actionable suggestions
+- If suggesting code changes, format them clearly with explanations
+- Maintain the app's existing functionality and design
+- Return ONLY your analysis and suggestions, no meta-commentary`;
+      
+      // Build conversation context
+      const conversationContext = chatHistory.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+      
+      // Add current code and user message
+      const currentCode = selectedApp.code || editCode || "";
+      const messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Current app code:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nUser feedback: ${message}` },
+        ...conversationContext
+      ];
+      
+      const res = await puter.ai.chat(messages, { model });
+      
+      let aiResponse = res?.message?.content || res?.text || res?.content || String(res);
+      aiResponse = aiResponse.trim();
+      
+      // Parse suggestions from AI response
+      const parsedSuggestions = parseSuggestions(aiResponse);
+      
+      // Add AI response to history
+      const aiMessage = { 
+        role: "assistant", 
+        content: aiResponse, 
+        suggestions: parsedSuggestions,
+        timestamp: Date.now() 
+      };
+      setChatHistory(prev => [...prev, aiMessage]);
+      setSuggestions(parsedSuggestions);
+      
+      addLog("AI response received");
+      
+    } catch (err) {
+      addLog(`Chat error: ${err.message}`);
+      showToast(`Chat error: ${err.message}`, "error");
+    }
+    setIsChatLoading(false);
+  };
+  
+  // Parse suggestions from AI response
+  const parseSuggestions = (response) => {
+    const suggestions = [];
+    
+    // Look for code blocks with explanations
+    const codeBlockRegex = /```(?:html|javascript|css)?\s*([\s\S]*?)```/g;
+    let match;
+    
+    while ((match = codeBlockRegex.exec(response)) !== null) {
+      const code = match[1].trim();
+      const beforeCode = response.substring(0, match.index).trim();
+      const afterCode = response.substring(match.index + match[0].length).trim();
+      
+      // Try to find explanation for this code block
+      let explanation = beforeCode;
+      if (afterCode && !explanation) {
+        explanation = afterCode;
+      }
+      
+      if (code && explanation) {
+        suggestions.push({
+          code,
+          explanation: explanation.replace(/^[^.!?]*[.!?]\s*/, '').trim() || "Suggested improvement"
+        });
+      }
+    }
+    
+    // If no code blocks found, look for specific suggestions
+    if (suggestions.length === 0) {
+      const suggestionLines = response.split('\n')
+        .filter(line => line.toLowerCase().includes('suggest') || 
+                       line.toLowerCase().includes('improve') ||
+                       line.toLowerCase().includes('change') ||
+                       line.toLowerCase().includes('update'));
+      
+      suggestionLines.forEach(line => {
+        if (line.trim().length > 10) {
+          suggestions.push({
+            code: null,
+            explanation: line.trim()
+          });
+        }
+      });
+    }
+    
+    return suggestions;
+  };
+  
+  // Apply suggestion to code
+  const applySuggestion = (suggestion) => {
+    if (!selectedApp || !suggestion.code) return;
+    
+    try {
+      const currentCode = editCode || selectedApp.code || "";
+      
+      // Simple approach: replace the entire code with the suggestion
+      // In a more sophisticated implementation, you'd want diff/patch logic
+      setEditCode(suggestion.code);
+      
+      // Mark suggestion as applied
+      setSuggestions(prev => prev.map(s => 
+        s === suggestion ? { ...s, applied: true } : s
+      ));
+      
+      showToast("Suggestion applied to code!", "success");
+      addLog("Applied AI suggestion");
+      
+    } catch (err) {
+      showToast(`Failed to apply suggestion: ${err.message}`, "error");
+    }
+  };
   
   // Toast management functions
   const showToast = (message, type = "success", duration = 3000) => {
@@ -1034,6 +1227,20 @@ RULES:
     addLog(`Restored v${version.version}`);
     setShowVersions(false);
   }
+  
+  function handleVersionSelect(version) {
+    if (!selectedOldVersion || (selectedOldVersion && selectedNewVersion)) {
+      setSelectedOldVersion(version);
+      setSelectedNewVersion(null);
+    } else if (selectedOldVersion && version._id !== selectedOldVersion._id) {
+      setSelectedNewVersion(version);
+    }
+  }
+  
+  function resetDiffSelection() {
+    setSelectedOldVersion(null);
+    setSelectedNewVersion(null);
+  }
 
   function exportApps() {
     const data = JSON.stringify(apps, null, 2);
@@ -1090,11 +1297,56 @@ RULES:
     const link = `${window.location.origin}?share=${encoded}`;
     setShareLink(link);
     setShowShareModal(true);
+    
+    // Generate QR code for the share link
+    setQRCodeDataURL(""); // Clear previous QR code
+    generateQRCode(link);
   }
 
   function copyShareLink() {
     navigator.clipboard.writeText(shareLink);
     showToast("Link copied to clipboard!", "success");
+  }
+
+  function generateQRCode(url) {
+    setIsGeneratingQR(true);
+    try {
+      // Use QRCode library to generate QR code
+      QRCode.toCanvas(url, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      }, (error, canvas) => {
+        setIsGeneratingQR(false);
+        if (error) {
+          console.error('QR Code generation error:', error);
+          showToast('Failed to generate QR code', 'error');
+          return;
+        }
+        
+        // Convert canvas to data URL for display and download
+        const dataURL = canvas.toDataURL('image/png');
+        setQRCodeDataURL(dataURL);
+      });
+    } catch (error) {
+      setIsGeneratingQR(false);
+      console.error('QR Code generation error:', error);
+      showToast('Failed to generate QR code', 'error');
+    }
+  }
+
+  function downloadQRCode() {
+    if (!qrCodeDataURL || !selectedApp) return;
+    
+    const link = document.createElement('a');
+    link.download = `${selectedApp.appTitle || selectedApp.appName || 'app'}-qr-code.png`;
+    link.href = qrCodeDataURL;
+    link.click();
+    
+    showToast('QR Code downloaded!', 'success');
   }
 
   function selectTemplate(template) {
@@ -1176,6 +1428,300 @@ RULES:
             onRemove={removeToast} 
           />
         ))}
+      </div>
+    );
+  };
+
+  // Version Diff Components
+  const VersionDiff = ({ oldVersion, newVersion, viewMode = 'unified', darkMode }) => {
+    if (!oldVersion || !newVersion) {
+      return (
+        <div className={`${darkMode ? "bg-[#2a2a2a]" : "bg-[#e8e8e8]"} shadow-[inset_4px_4px_8px_#c5c5c5,inset_-4px_-4px_8px_#ffffff] rounded-xl p-4 text-center`}>
+          <div className={`${darkMode ? "text-[#cccccc]" : "text-[#666]"}`}>Select two versions to compare</div>
+        </div>
+      );
+    }
+
+    const diff = Diff.diffLines(oldVersion.code, newVersion.code);
+    const textPrimary = darkMode ? "text-[#e8e8e8]" : "text-[#1a1a1a]";
+    const textSecondary = darkMode ? "text-[#cccccc]" : "text-[#666]";
+    const bgAdded = darkMode ? "bg-[#064e3b]" : "bg-[#dcfce7]";
+    const bgRemoved = darkMode ? "bg-[#7f1d1d]" : "bg-[#fee2e2]";
+    const textAdded = darkMode ? "text-[#10b981]" : "text-[#059669]";
+    const textRemoved = darkMode ? "text-[#ef4444]" : "text-[#dc2626]";
+
+    if (viewMode === 'side-by-side') {
+      return (
+        <div className={`${darkMode ? "bg-[#2a2a2a]" : "bg-[#e8e8e8]"} shadow-[inset_4px_4px_8px_#c5c5c5,inset_-4px_-4px_8px_#ffffff] rounded-xl overflow-hidden`}>
+          <div className="flex border-b border-[#d0d0d0]">
+            <div className="flex-1 p-3">
+              <h4 className={`font-bold ${textPrimary} text-sm`}>Version {oldVersion.version}</h4>
+              <div className={`${textSecondary} text-xs`}>{new Date(oldVersion.createdAt).toLocaleString()}</div>
+            </div>
+            <div className="flex-1 p-3 border-l border-[#d0d0d0]">
+              <h4 className={`font-bold ${textPrimary} text-sm`}>Version {newVersion.version}</h4>
+              <div className={`${textSecondary} text-xs`}>{new Date(newVersion.createdAt).toLocaleString()}</div>
+            </div>
+          </div>
+          <div className="flex">
+            <div className="flex-1 max-h-96 overflow-y-auto">
+              {diff.map((part, index) => {
+                if (part.added) return null;
+                const lines = part.value.split('\n');
+                return (
+                  <div key={index} className={`font-mono text-xs p-1 ${
+                    part.removed ? bgRemoved : ''
+                  }`}>
+                    {lines.map((line, lineIndex) => (
+                      <div key={lineIndex} className={`whitespace-pre ${
+                        part.removed ? textRemoved : textPrimary
+                      }`}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex-1 max-h-96 overflow-y-auto border-l border-[#d0d0d0]">
+              {diff.map((part, index) => {
+                if (part.removed) return null;
+                const lines = part.value.split('\n');
+                return (
+                  <div key={index} className={`font-mono text-xs p-1 ${
+                    part.added ? bgAdded : ''
+                  }`}>
+                    {lines.map((line, lineIndex) => (
+                      <div key={lineIndex} className={`whitespace-pre ${
+                        part.added ? textAdded : textPrimary
+                      }`}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Unified view
+    return (
+      <div className={`${darkMode ? "bg-[#2a2a2a]" : "bg-[#e8e8e8]"} shadow-[inset_4px_4px_8px_#c5c5c5,inset_-4px_-4px_8px_#ffffff] rounded-xl overflow-hidden`}>
+        <div className="p-3 border-b border-[#d0d0d0]">
+          <div className="flex justify-between items-center">
+            <div>
+              <h4 className={`font-bold ${textPrimary} text-sm`}>Comparing Version {oldVersion.version} → {newVersion.version}</h4>
+              <div className={`${textSecondary} text-xs`}>
+                {new Date(oldVersion.createdAt).toLocaleString()} → {new Date(newVersion.createdAt).toLocaleString()}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="max-h-96 overflow-y-auto">
+          {diff.map((part, index) => {
+            const lines = part.value.split('\n');
+            return (
+              <div key={index} className={`font-mono text-xs p-2 border-b border-[#f0f0f0] last:border-b-0 ${
+                part.added ? bgAdded : part.removed ? bgRemoved : ''
+              }`}>
+                {lines.map((line, lineIndex) => (
+                  <div key={lineIndex} className={`whitespace-pre ${
+                    part.added ? textAdded : part.removed ? textRemoved : textPrimary
+                  }`}>
+                    <span className={`inline-block w-8 ${
+                      part.added ? textAdded : part.removed ? textRemoved : textSecondary
+                    }`}>
+                      {part.added ? '+' : part.removed ? '-' : ' '}
+                    </span>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Chat Components
+  const ChatMessage = ({ message, onApplySuggestion }) => {
+    const isUser = message.role === "user";
+    const timeStr = new Date(message.timestamp).toLocaleTimeString();
+    
+    return (
+      <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
+        <div className={`max-w-[80%] ${isUser ? "order-2" : "order-1"}`}>
+          <div className={`flex items-start gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+              isUser ? "bg-[#dc2626] text-white" : "bg-[#22c55e] text-white"
+            }`}>
+              {isUser ? "U" : "AI"}
+            </div>
+            <div className={`rounded-2xl p-3 ${
+              isUser 
+                ? "bg-[#dc2626] text-white" 
+                : `${neuInset} ${textPrimary}`
+            }`}>
+              <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+              <div className={`text-xs mt-1 ${isUser ? "text-red-100" : textSecondary}`}>
+                {timeStr}
+              </div>
+            </div>
+          </div>
+          
+          {/* Suggestions */}
+          {message.suggestions && message.suggestions.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {message.suggestions.map((suggestion, index) => (
+                <div key={index} className={`${neuInset} rounded-xl p-3`}>
+                  <div className={`text-sm ${textSecondary} mb-2`}>
+                    💡 {suggestion.explanation}
+                  </div>
+                  {suggestion.code && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => onApplySuggestion(suggestion)}
+                        disabled={suggestion.applied}
+                        className={`${neuBtn} rounded-lg px-3 py-1 text-xs font-bold ${textPrimary} disabled:opacity-50`}
+                      >
+                        {suggestion.applied ? "✓ Applied" : "Apply Changes"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const ChatInput = ({ value, onChange, onSend, disabled }) => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        onSend();
+      }
+    };
+    
+    return (
+      <div className={`${neuInset} rounded-2xl p-3 flex items-end gap-2`}>
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="Ask AI to improve your app..."
+          disabled={disabled}
+          className={`flex-1 bg-transparent ${textPrimary} border-0 outline-none resize-none placeholder-[#999]`}
+          rows="1"
+          style={{ minHeight: '20px', maxHeight: '80px' }}
+        />
+        <button
+          onClick={onSend}
+          disabled={disabled || !value.trim()}
+          className={`${neuBtn} rounded-xl p-2 ${textPrimary} disabled:opacity-50`}
+        >
+          {disabled ? "⏳" : "📤"}
+        </button>
+      </div>
+    );
+  };
+
+  const ChatPanel = () => {
+    const messagesEndRef = useRef(null);
+    
+    const scrollToBottom = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+    
+    useEffect(() => {
+      scrollToBottom();
+    }, [chatHistory]);
+    
+    const handleSendMessage = () => {
+      if (chatInput.trim() && !isChatLoading) {
+        iterateOnApp(chatInput);
+      }
+    };
+    
+    const handleApplySuggestion = (suggestion) => {
+      applySuggestion(suggestion);
+    };
+    
+    if (!isChatVisible) {
+      return (
+        <button
+          onClick={() => setIsChatVisible(true)}
+          className={`${neuBtn} rounded-full w-12 h-12 flex items-center justify-center text-xl ${textPrimary} mb-4`}
+          title="Open AI Chat"
+        >
+          💬
+        </button>
+      );
+    }
+    
+    return (
+      <div className={`${neu} rounded-[24px] p-4 mb-6`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className={`font-black ${textPrimary} flex items-center gap-2`}>
+            <span className="text-[#22c55e]">🤖</span>
+            AI Assistant
+          </h3>
+          <button
+            onClick={() => setIsChatVisible(false)}
+            className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-sm ${textPrimary}`}
+          >
+            ×
+          </button>
+        </div>
+        
+        {/* Chat Messages */}
+        <div className="h-64 overflow-y-auto mb-4 space-y-2">
+          {chatHistory.length === 0 ? (
+            <div className={`text-center ${textSecondary} py-8`}>
+              <div className="text-3xl mb-2">🤖</div>
+              <div className="text-sm">Start a conversation to improve your app!</div>
+            </div>
+          ) : (
+            chatHistory.map((message, index) => (
+              <ChatMessage
+                key={index}
+                message={message}
+                onApplySuggestion={handleApplySuggestion}
+              />
+            ))
+          )}
+          {isChatLoading && (
+            <div className="flex justify-start mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#22c55e] text-white flex items-center justify-center text-sm font-bold">
+                  AI
+                </div>
+                <div className={`${neuInset} rounded-2xl p-3 ${textPrimary}`}>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-[#22c55e] rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-[#22c55e] rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                    <div className="w-2 h-2 bg-[#22c55e] rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        
+        {/* Chat Input */}
+        <ChatInput
+          value={chatInput}
+          onChange={setChatInput}
+          onSend={handleSendMessage}
+          disabled={isChatLoading}
+        />
       </div>
     );
   };
@@ -1280,11 +1826,54 @@ RULES:
         {/* Share Modal */}
         {showShareModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowShareModal(false)}>
-            <div className={`${neu} rounded-[24px] p-6 max-w-lg w-full`} onClick={e => e.stopPropagation()}>
+            <div className={`${neu} rounded-[24px] p-6 max-w-md w-full`} onClick={e => e.stopPropagation()}>
               <h3 className={`font-black ${textPrimary} text-xl mb-4`}>🔗 Share App</h3>
+              
+              {/* Share Link Section */}
               <div className={`${neuInset} rounded-xl p-3 mb-4`}>
                 <input value={shareLink} readOnly className={`w-full bg-transparent text-xs font-mono ${textPrimary} outline-none`} />
               </div>
+              
+              {/* QR Code Section */}
+              <div className="mb-4">
+                <h4 className={`font-bold ${textPrimary} text-sm mb-3 flex items-center gap-2`}>
+                  📱 Mobile QR Code
+                  <span className={`${textSecondary} text-xs`}>(Scan to open on mobile)</span>
+                </h4>
+                
+                <div className={`${neuInset} rounded-xl p-4 flex flex-col items-center`}>
+                  {isGeneratingQR ? (
+                    <div className="flex flex-col items-center py-8">
+                      <div className={`w-12 h-12 mx-auto mb-3 rounded-full ${neuInset} flex items-center justify-center animate-spin`}>
+                        <span className="text-xl">⚙️</span>
+                      </div>
+                      <div className={`${textSecondary} text-sm`}>Generating QR Code...</div>
+                    </div>
+                  ) : qrCodeDataURL ? (
+                    <div className="text-center">
+                      <img 
+                        src={qrCodeDataURL} 
+                        alt="QR Code for app sharing" 
+                        className="mx-auto mb-3 border-2 border-gray-200 rounded-lg"
+                        style={{ width: '200px', height: '200px' }}
+                      />
+                      <button 
+                        onClick={downloadQRCode}
+                        className={`${neuBtn} rounded-xl py-2 px-4 font-bold ${textPrimary} text-sm flex items-center gap-2 mx-auto`}
+                      >
+                        💾 Download QR Code
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`${textMuted} text-center py-4`}>
+                      <div className="text-2xl mb-2">⚠️</div>
+                      <div className="text-sm">Failed to generate QR code</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
               <div className="flex gap-3">
                 <button onClick={copyShareLink} className={`flex-1 ${neuBtnRed} rounded-xl py-3 font-bold`}>
                   📋 Copy Link
@@ -1299,29 +1888,116 @@ RULES:
 
         {/* Version History Modal */}
         {showVersions && selectedApp && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowVersions(false)}>
-            <div className={`${neu} rounded-[24px] p-6 max-w-md w-full max-h-[80vh] overflow-hidden`} onClick={e => e.stopPropagation()}>
-              <h3 className={`font-black ${textPrimary} text-xl mb-4`}>📚 Version History</h3>
-              <div className="space-y-2 max-h-[50vh] overflow-y-auto">
-                {appVersions.length === 0 ? (
-                  <p className={`${textSecondary} text-center py-4`}>No versions saved yet</p>
-                ) : (
-                  appVersions.map(v => (
-                    <div key={v._id} className={`${neuInset} rounded-xl p-3 flex justify-between items-center`}>
-                      <div>
-                        <div className={`font-bold ${textPrimary}`}>Version {v.version}</div>
-                        <div className={`${textSecondary} text-xs`}>{new Date(v.createdAt).toLocaleString()}</div>
-                      </div>
-                      <button onClick={() => restoreVersion(v)} className={`${neuBtn} rounded-full px-3 py-1 text-sm font-bold ${textPrimary}`}>
-                        Restore
-                      </button>
-                    </div>
-                  ))
-                )}
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setShowVersions(false); resetDiffSelection(); }}>
+            <div className={`${neu} rounded-[24px] p-6 max-w-4xl w-full max-h-[90vh] overflow-hidden`} onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-black ${textPrimary} text-xl`}>📚 Version History & Diff Viewer</h3>
+                <button onClick={() => { setShowVersions(false); resetDiffSelection(); }} className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-sm ${textPrimary}`}>
+                  ×
+                </button>
               </div>
-              <button onClick={() => setShowVersions(false)} className={`w-full ${neuBtnBlack} rounded-xl py-3 font-bold mt-4`}>
-                Close
-              </button>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-[70vh] overflow-hidden">
+                {/* Version List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className={`font-bold ${textPrimary}`}>Versions</h4>
+                    {selectedOldVersion && selectedNewVersion && (
+                      <button onClick={resetDiffSelection} className={`${neuBtn} rounded-full px-3 py-1 text-xs font-bold ${textPrimary}`}>
+                        Clear Selection
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                    {appVersions.length === 0 ? (
+                      <p className={`${textSecondary} text-center py-4`}>No versions saved yet</p>
+                    ) : (
+                      appVersions.map(v => {
+                        const isOldSelected = selectedOldVersion?._id === v._id;
+                        const isNewSelected = selectedNewVersion?._id === v._id;
+                        const isDisabled = selectedOldVersion && !selectedNewVersion && isOldSelected;
+                        
+                        return (
+                          <div key={v._id} className={`${neuInset} rounded-xl p-3 transition-all ${
+                            isOldSelected || isNewSelected ? 'ring-2 ring-[#dc2626]' : ''
+                          }`}>
+                            <div className="flex justify-between items-center">
+                              <div className="flex-1">
+                                <div className={`font-bold ${textPrimary} flex items-center gap-2`}>
+                                  Version {v.version}
+                                  {isOldSelected && <span className="text-xs bg-[#dc2626] text-white px-2 py-1 rounded-full">Old</span>}
+                                  {isNewSelected && <span className="text-xs bg-[#22c55e] text-white px-2 py-1 rounded-full">New</span>}
+                                </div>
+                                <div className={`${textSecondary} text-xs`}>{new Date(v.createdAt).toLocaleString()}</div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => handleVersionSelect(v)}
+                                  disabled={isDisabled}
+                                  className={`${neuBtn} rounded-full px-3 py-1 text-xs font-bold ${textPrimary} disabled:opacity-50`}
+                                >
+                                  {isOldSelected || isNewSelected ? 'Selected' : 'Select'}
+                                </button>
+                                <button onClick={() => restoreVersion(v)} className={`${neuBtn} rounded-full px-3 py-1 text-xs font-bold ${textPrimary}`}>
+                                  Restore
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+                
+                {/* Diff Viewer */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className={`font-bold ${textPrimary}`}>Diff Viewer</h4>
+                    {selectedOldVersion && selectedNewVersion && (
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => setDiffViewMode('unified')}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                            diffViewMode === 'unified' 
+                              ? 'bg-[#dc2626] text-white shadow-[inset_2px_2px_4px_#b91c1c,inset_-2px_-2px_4px_#ef4444]' 
+                              : `${neuBtn} ${textPrimary}`
+                          }`}
+                        >
+                          Unified
+                        </button>
+                        <button 
+                          onClick={() => setDiffViewMode('side-by-side')}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                            diffViewMode === 'side-by-side' 
+                              ? 'bg-[#dc2626] text-white shadow-[inset_2px_2px_4px_#b91c1c,inset_-2px_-2px_4px_#ef4444]' 
+                              : `${neuBtn} ${textPrimary}`
+                          }`}
+                        >
+                          Side-by-Side
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {selectedOldVersion && selectedNewVersion ? (
+                    <VersionDiff 
+                      oldVersion={selectedOldVersion} 
+                      newVersion={selectedNewVersion} 
+                      viewMode={diffViewMode}
+                      darkMode={darkMode}
+                    />
+                  ) : (
+                    <div className={`${neuInset} rounded-xl p-8 text-center`}>
+                      <div className="text-4xl mb-4">🔍</div>
+                      <div className={`${textSecondary} mb-2`}>Select two versions to compare</div>
+                      <div className={`${textMuted} text-sm`}>
+                        Choose an "Old" version first, then a "New" version to see the differences
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1737,6 +2413,8 @@ RULES:
 
             {/* Preview Panel */}
             <div className="lg:col-span-2 space-y-6">
+              {/* AI Chat Panel */}
+              {selectedApp && <ChatPanel />}
               <div className={`${neu} rounded-[24px] overflow-hidden`}>
                 <div className="bg-[#1a1a1a] p-4 flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
@@ -1791,6 +2469,10 @@ RULES:
                   <button onClick={() => setShowCode(!showCode)} disabled={!displayCode}
                     className={`${neuBtn} rounded-full px-4 py-2 font-bold text-xs ${textPrimary} disabled:opacity-50`}>
                     {showCode ? "Preview" : "</>"}
+                  </button>
+                  <button onClick={() => setIsChatVisible(!isChatVisible)}
+                    className={`${neuBtn} rounded-full px-4 py-2 font-bold text-xs ${isChatVisible ? "bg-[#22c55e] text-white" : textPrimary} disabled:opacity-50`}>
+                    💬
                   </button>
                   {selectedApp && (
                     <button onClick={e => launchApp(selectedApp, e)}
