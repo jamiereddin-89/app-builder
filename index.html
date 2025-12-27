@@ -101,7 +101,7 @@ export default function App() {
     { id: "chat", name: "Chat Interface", icon: "💬", prompt: "A chat interface with message bubbles, typing indicators, timestamps, and emoji picker" },
   ];
 
-  const addLog = (msg) => setLog(prev => [...prev.slice(-15), `${new Date().toLocaleTimeString()}: ${msg}`]);
+  const addLog = (msg) => setLog(prev => [...prev.slice(-16), `${new Date().toLocaleTimeString()}: ${msg}`]);
   const displayCode = editCode || selectedApp?.code || "";
 
   // Filter and sort apps
@@ -181,6 +181,34 @@ export default function App() {
     addLog(`Welcome ${u.username}`);
   }
 
+  function validateHTML(code) {
+    const errors = [];
+    if (!code.toLowerCase().includes("<!doctype html>")) {
+      errors.push("Missing DOCTYPE declaration. HTML must start with &lt;!DOCTYPE html&gt;");
+    }
+    if (!/<html[^>]*>/i.test(code)) {
+      errors.push("Missing &lt;html&gt; opening tag");
+    }
+    if (!/<\/html>/i.test(code)) {
+      errors.push("Missing &lt;/html&gt; closing tag");
+    }
+    if (!/<head[^>]*>/i.test(code)) {
+      errors.push("Missing &lt;head&gt; opening tag");
+    }
+    if (!/<\/head>/i.test(code)) {
+      errors.push("Missing &lt;/head&gt; closing tag");
+    }
+    if (!/<body[^>]*>/i.test(code)) {
+      errors.push("Missing &lt;body&gt; opening tag");
+    }
+    if (!/<\/body>/i.test(code)) {
+      errors.push("Missing &lt;/body&gt; closing tag");
+    }
+    if (errors.length > 0) {
+      throw new Error("HTML Validation Failed:\n" + errors.join("\n"));
+    }
+  }
+
   async function buildAndDeploy(customPrompt) {
     const finalPrompt = customPrompt || prompt;
     if (!finalPrompt.trim() || !puter || !user) return;
@@ -213,7 +241,7 @@ RULES:
       code = code.replace(/```html?\n?/gi, "").replace(/```\n?/g, "").trim();
       const start = code.search(/<!doctype\s+html>/i);
       if (start > 0) code = code.slice(start);
-      if (!code.toLowerCase().includes("<!doctype html>")) throw new Error("Invalid HTML");
+      validateHTML(code);
 
       addLog(`Generated ${code.length} bytes`);
       
@@ -306,7 +334,18 @@ RULES:
     setGenerating(true);
     try {
       addLog("Updating...");
-      
+
+      // Cleanup old directory
+      if (selectedApp.dir) {
+        addLog("Cleaning up old directory...");
+        try {
+          await puter.fs.rmdir(selectedApp.dir);
+          addLog("Old directory removed");
+        } catch (e) {
+          addLog("Old directory already removed or not found");
+        }
+      }
+
       const dirName = `app_${Date.now()}`;
       await puter.fs.mkdir(dirName);
       await puter.fs.write(`${dirName}/index.html`, editCode);
@@ -358,6 +397,15 @@ RULES:
     e?.stopPropagation();
     try {
       addLog(`Deleting ${app.appName || app.subdomain}...`);
+      // Cleanup directory
+      if (app.dir) {
+        try {
+          await puter.fs.rmdir(app.dir);
+          addLog("Directory removed");
+        } catch (e) {
+          addLog("Directory already removed or not found");
+        }
+      }
       if (app.appName) {
         try { await puter.apps.delete(app.appName); } catch (e) {}
       }
