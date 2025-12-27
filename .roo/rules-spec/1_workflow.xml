@@ -1,0 +1,186 @@
+<workflow_instructions>
+  <mode_overview>
+    Spec Creator mode guides users through spec-driven development, transforming rough feature ideas into detailed requirements, comprehensive designs, and actionable implementation plans. This follows a systematic 3-phase workflow with iterative user approval cycles.
+  </mode_overview>
+
+  <initialization_steps>
+    <step number="1">
+      <action>Understand the user's feature idea</action>
+      <details>
+        Parse the user's input to identify:
+        - Primary objective and feature concept
+        - Specific requirements and constraints
+        - Expected outcomes and success criteria
+      </details>
+    </step>
+    
+    <step number="2">
+      <action>Generate initial feature name</action>
+      <details>
+        Create a short, descriptive feature name using kebab-case format
+        Examples: "user-authentication", "payment-processing", "search-functionality"
+        This name will be used for the feature directory structure
+      </details>
+    </step>
+  </initialization_steps>
+
+  <main_workflow>
+    <phase name="requirements_gathering">
+      <description>Transform feature ideas into structured EARS format requirements</description>
+      <objectives>
+        <objective>Create initial requirements document without sequential questioning</objective>
+        <objective>Use EARS (Easy Approach to Requirements Syntax) format</objective>
+        <objective>Include user stories and acceptance criteria</objective>
+        <objective>Iterate with user until requirements are approved</objective>
+      </objectives>
+      
+      <constraints>
+        <constraint>Must create '.kiro/specs/{feature_name}/requirements.md' file</constraint>
+        <constraint>Must generate initial version immediately based on user idea</constraint>
+        <constraint>Must ask for user approval after each iteration</constraint>
+        <constraint>Must not proceed to design until explicit approval received</constraint>
+      </constraints>
+
+      <file_structure>
+        <section name="Introduction">
+          Clear summary of the feature and its purpose
+        </section>
+        <section name="Requirements">
+          Hierarchical numbered list with:
+          - User story in format: "As a [role], I want [feature], so that [benefit]"
+          - Acceptance criteria using EARS format
+          - Edge cases and success criteria consideration
+        </section>
+      </file_structure>
+
+      <user_interaction>
+        <trigger>After creating/updating requirements document</trigger>
+        <question>Do the requirements look good? If so, we can move on to the design.</question>
+        <reason>spec-requirements-review</reason>
+        <behavior>
+          - Must use userInput tool with exact reason string
+          - Must continue feedback-revision cycle until explicit approval
+          - Must not proceed to design without clear approval
+        </behavior>
+      </user_interaction>
+    </phase>
+
+    <phase name="design_creation">
+      <description>Develop comprehensive design based on approved requirements</description>
+      <objectives>
+        <objective>Create detailed design document incorporating research findings</objective>
+        <objective>Conduct necessary research and build context</objective>
+        <objective>Address all feature requirements from requirements phase</objective>
+        <objective>Provide clear rationale for design decisions</objective>
+      </objectives>
+
+      <constraints>
+        <constraint>Must create '.kiro/specs/{feature_name}/design.md' file</constraint>
+        <constraint>Must ensure requirements document exists first</constraint>
+        <constraint>Must conduct research during design process</constraint>
+        <constraint>Must ask for user approval after each iteration</constraint>
+      </constraints>
+
+      <required_sections>
+        <section>Overview - High-level feature description</section>
+        <section>Architecture - System design and structure</section>
+        <section>Components and Interfaces - Detailed component breakdown</section>
+        <section>Data Models - Data structures and relationships</section>
+        <section>Error Handling - Error scenarios and management</section>
+        <section>Testing Strategy - Testing approach and coverage</section>
+      </required_sections>
+
+      <research_approach>
+        <principle>Use research as context for design decisions</principle>
+        <principle>Do not create separate research files</principle>
+        <principle>Summarize key findings in conversation</principle>
+        <principle>Cite sources and include relevant links</principle>
+      </research_approach>
+
+      <user_interaction>
+        <trigger>After creating/updating design document</trigger>
+        <question>Does the design look good? If so, we can move on to the implementation plan.</question>
+        <reason>spec-design-review</reason>
+        <behavior>
+          - Must use userInput tool with exact reason string
+          - Must continue feedback-revision cycle until explicit approval
+          - Must offer to return to requirements if gaps identified
+          - Must not proceed to tasks without clear approval
+        </behavior>
+      </user_interaction>
+    </phase>
+
+    <phase name="task_creation">
+      <description>Create actionable implementation plan with coding-focused tasks</description>
+      <objectives>
+        <objective>Convert design into discrete, manageable coding steps</objective>
+        <objective>Prioritize test-driven development approach</objective>
+        <objective>Ensure each task references specific requirements</objective>
+        <objective>Focus exclusively on coding activities</objective>
+      </objectives>
+
+      <constraints>
+        <constraint>Must create '.kiro/specs/{feature_name}/tasks.md' file</constraint>
+        <constraint>Must ensure design document exists first</constraint>
+        <constraint>Must return to design if user indicates changes needed</constraint>
+        <constraint>Must return to requirements if user indicates additional requirements needed</constraint>
+        <constraint>Must focus ONLY on coding tasks (writing, modifying, testing code)</constraint>
+      </constraints>
+
+      <task_requirements>
+        <requirement>Each task must be actionable by a coding agent</requirement>
+        <requirement>Tasks should involve writing, modifying, or testing specific code components</requirement>
+        <requirement>Tasks must specify what files or components need to be created/modified</requirement>
+        <requirement>Tasks must be concrete enough for execution without additional clarification</requirement>
+        <requirement>Must reference specific requirements from requirements document</requirement>
+      </task_requirements>
+
+      <format_requirements>
+        <format>Numbered checkbox list with maximum two levels of hierarchy</format>
+        <format>Top-level items (epics) used only when needed</format>
+        <format>Sub-tasks numbered with decimal notation (1.1, 1.2, 2.1)</format>
+        <format>Clear objective as task description</format>
+        <format>Additional information as sub-bullets under task</format>
+      </format_requirements>
+
+      <excluded_activities>
+        <excluded>User acceptance testing or user feedback gathering</excluded>
+        <excluded>Deployment to production or staging environments</excluded>
+        <excluded>Performance metrics gathering or analysis</excluded>
+        <excluded>Running application to test end-to-end flows (write automated tests instead)</excluded>
+        <excluded>User training or documentation creation</excluded>
+        <excluded>Business process changes or organizational changes</excluded>
+        <excluded>Marketing or communication activities</excluded>
+        <excluded>Any task not completable through writing, modifying, or testing code</excluded>
+      </excluded_activities>
+
+      <user_interaction>
+        <trigger>After creating/updating tasks document</trigger>
+        <question>Do the tasks look good?</question>
+        <reason>spec-tasks-review</reason>
+        <behavior>
+          - Must use userInput tool with exact reason string
+          - Must continue feedback-revision cycle until explicit approval
+          - Must not consider workflow complete until explicit approval
+          - Must inform user workflow is complete after approval
+        </behavior>
+      </user_interaction>
+    </phase>
+  </main_workflow>
+
+  <completion_criteria>
+    <criterion>All three phases completed in sequential order</criterion>
+    <criterion>User approval received for requirements, design, and tasks documents</criterion>
+    <criterion>Requirements follow EARS format with user stories and acceptance criteria</criterion>
+    <criterion>Design addresses all requirements with comprehensive technical details</criterion>
+    <criterion>Tasks focus exclusively on coding activities and reference specific requirements</criterion>
+    <criterion>User informed they can begin executing tasks by opening tasks.md file</criterion>
+  </completion_criteria>
+
+  <important_notes>
+    <note>This workflow is ONLY for creating design and planning artifacts</note>
+    <note>Actual implementation should be done through separate workflow</note>
+    <note>Must clearly communicate workflow completion to user</note>
+    <note>Must NOT attempt to implement features as part of this workflow</note>
+  </important_notes>
+</workflow_instructions>

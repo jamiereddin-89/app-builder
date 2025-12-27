@@ -1,819 +1,334 @@
-### [ ] Implement Task 2.2: Template Categories
-Organize the 12 app templates into logical categories (Productivity, Utilities, Entertainment, etc.) and modify the template modal to display them with category tabs or sections for easy navigation. Update the template selection logic accordingly.
-
-#### Steps:
-1. Create templateCategories object grouping templates by category
-2. Add selectedCategory state variable
-3. Modify template modal to display category tabs
-4. Update template display logic to filter by selected category
-5. Test category navigation and template selection
-**Acceptance Criteria**:
-- [ ] Old directories deleted on app update
-- [ ] Old directories deleted on app deletion
-- [ ] Error handling for already-deleted directories
-- [ ] Log messages for cleanup operations
-
-**Implementation Steps**:
-1. Add cleanup logic to `updateAndRedeploy()` function
-2. Add cleanup logic to `deleteApp()` function
-3. Test with multiple app updates
-4. Test with app deletion
-5. Verify no errors when directory already deleted
-
-**Code Location**: Lines 304-355, 357-381 in index.html
-
----
-
-### [X] Task 1.2: Fix Log Array Off-by-One Error
-**Priority**: LOW  
-**Estimated Effort**: 5 minutes  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Log maintains exactly 16 entries as intended
-- [ ] No entries lost
-
-**Implementation Steps**:
-1. Change `.slice(-15)` to `.slice(-16)` in `addLog()` function
-2. Test log overflow behavior
-
-**Code Location**: Line 104 in index.html
-
----
-
-### [X] Task 1.3: Enhanced HTML Validation
-**Priority**: MEDIUM  
-**Estimated Effort**: 1 hour  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Check for required HTML tags (html, head, body)
-- [ ] Provide detailed error messages
-- [ ] Prevent deployment of invalid HTML
-
-**Implementation Steps**:
-1. Create `validateHTML()` function
-2. Add checks for DOCTYPE, html, head, body tags
-3. Call validation before deployment
-4. Add error handling with descriptive messages
-5. Test with various invalid HTML inputs
-
-**Code Location**: Around line 216 in index.html
-
----
-
-## 2. Feature Enhancements - High Priority
-
-### [X] Task 2.1: Dark Mode Support
-**Priority**: MEDIUM  
-**Estimated Effort**: 4 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Toggle button in header
-- [ ] Dark neomorphic color palette defined
-- [ ] All components support dark mode
-- [ ] Mode persists in localStorage
-- [ ] Smooth transitions between modes
-
-**Implementation Steps**:
-1. Add `darkMode` state variable
-2. Define dark color palette constants
-3. Create conditional styling logic
-4. Update all neu/neuInset/neuBtn classes
-5. Add toggle button to header
-6. Implement localStorage persistence
-7. Test all components in both modes
-
-**Code Location**: Throughout index.html, especially lines 499-503
-
----
-
-### [X] Task 2.2: Template Categories
-**Priority**: LOW  
-**Estimated Effort**: 2 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Templates organized by category
-- [ ] Category tabs or sections in modal
-- [ ] Easy navigation between categories
-
-**Implementation Steps**:
-1. Create `templateCategories` object
-2. Modify template modal to show categories
-3. Add category navigation/tabs
-4. Update template selection logic
-5. Test category filtering
-
-**Code Location**: Lines 88-102 in index.html
-
----
-
-### [X] Task 2.3: Tag System Implementation
-**Priority**: MEDIUM  
-**Estimated Effort**: 3 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Tag input component in build form
-- [ ] Tags saved with app metadata
-- [ ] Filter apps by tags
-- [ ] Tag chips displayed on app cards
-- [ ] Tags can be added/removed
-
-**Implementation Steps**:
-1. Add `tags` state variable
-2. Create TagInput component
-3. Add tag input to build form
-4. Save tags in database with app
-5. Add tag filter to apps list
-6. Display tags on app cards
-7. Test tag filtering and persistence
-
-**Code Location**: Build form section, app cards
-
----
-
-### [X] Task 2.4: Keyboard Shortcuts
-**Priority**: LOW  
-**Estimated Effort**: 2 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [x] Ctrl/Cmd+K: Focus search
-- [x] Ctrl/Cmd+B: Switch to build tab
-- [x] Ctrl/Cmd+S: Save/redeploy (if editing)
-- [x] Escape: Close modals
-- [x] Help overlay showing shortcuts
-
-**Implementation Steps**:
-1. Add keydown event listener in useEffect ✓
-2. Implement shortcut handlers ✓
-3. Prevent default browser behaviors ✓
-4. Create keyboard shortcut help modal ✓
-5. Test on Mac and Windows ✓
-
-**Code Location**: Lines 200-271 (useEffect), Lines 1243-1309 (help modal)
-
-**Status**: ✅ ALREADY IMPLEMENTED - Complete keyboard shortcuts system with all required functionality
-
----
-
-### [X] Task 2.5: App Duplication Feature
-**Priority**: LOW  
-**Estimated Effort**: 1.5 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [x] Duplicate button on app card/details
-- [x] Creates copy with "-copy" suffix
-- [x] New subdomain generated
-- [x] New hosting site created
-- [x] Version reset to 1
-
-**Implementation Steps**:
-1. Create `duplicateApp()` function ✓
-2. Clone app object and modify fields ✓
-3. Generate new subdomain ✓
-4. Deploy to hosting ✓
-5. Save to database ✓
-6. Add button to UI ✓
-7. Test duplication process ✓
-
-**Code Location**: Lines 437-487 (duplicateApp function), Lines 1792-1800 (app details button), Lines 1547-1557 (app card button)
-
-**Status**: ✅ COMPLETED - Full app duplication feature with duplicate buttons and complete functionality
-
----
-
-## 3. UI/UX Improvements
-
-### [X] Task 3.1: Loading Progress Indicator
-**Priority**: MEDIUM  
-**Estimated Effort**: 1 hour  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [x] Shows current stage during generation
-- [x] Stages: "Generating code", "Creating filesystem", "Deploying", etc.
-- [x] Updates in real-time
-- [x] Visible in preview panel
-
-**Implementation Steps**:
-1. Add `generationStage` state variable ✓
-2. Update stage at each step in `buildAndDeploy()` ✓
-3. Display stage in UI below spinner ✓
-4. Test with actual app generation ✓
-
-**Code Location**: Lines 62, 269-383, 1170-1172 in index.html
-
----
-
-### [X] Task 3.2: Toast Notifications
-**Priority**: LOW  
-**Estimated Effort**: 2 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Toast component created
-- [ ] Auto-dismiss after 3 seconds
-- [ ] Success and error variants
-- [ ] Stack multiple toasts
-- [ ] Replace log panel for key events
-
-**Implementation Steps**:
-1. Create Toast component
-2. Add toast state array
-3. Create `showToast()` helper
-4. Replace key `addLog()` calls with toasts
-5. Implement auto-dismiss
-6. Style with neomorphic design
-7. Test with various operations
-
-**Code Location**: New Toast component
-
----
-
-### [X] Task 3.3: App Preview Zoom Controls
-**Priority**: LOW  
-**Estimated Effort**: 1 hour  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Zoom in/out buttons
-- [ ] Percentage display
-- [ ] Reset button
-- [ ] Smooth scaling
-- [ ] Zoom level persists per app
-
-**Implementation Steps**:
-1. Add `previewZoom` state variable
-2. Add zoom controls to preview header
-3. Apply CSS transform to iframe
-4. Implement zoom functions (+10%, -10%, reset)
-5. Test at various zoom levels
-
-**Code Location**: Preview panel header, lines 929-970
-
----
-
-### [X] Task 3.4: Code Editor Syntax Highlighting
-**Priority**: MEDIUM  
-**Estimated Effort**: 3 hours  
-**Dependencies**: Monaco Editor or CodeMirror CDN
-
-**Acceptance Criteria**:
-- [ ] HTML syntax highlighting
-- [ ] Line numbers
-- [ ] Code folding
-- [ ] Auto-indentation
-- [ ] Dark theme support
-
-**Implementation Steps**:
-1. Add Monaco Editor from CDN
-2. Replace textarea with Editor component
-3. Configure options (language, theme, etc.)
-4. Test performance with large files
-5. Ensure edit functionality works
-
-**Code Location**: Lines 932-937
-
----
-
-## 4. Performance Optimizations
-
-### [X] Task 4.1: Debounced Search
-**Priority**: MEDIUM  
-**Estimated Effort**: 30 minutes  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [x] Search doesn't filter on every keystroke
-- [x] Uses React's useDeferredValue
-- [x] Smooth user experience
-- [x] No lag with large app lists
-
-**Implementation Steps**:
-1. Import `useDeferredValue` from React
-2. Wrap searchQuery with useDeferredValue
-3. Use deferred value in filter logic
-4. Test with 100+ apps
-
-**Code Location**: Lines 73, 108-126
-
----
-
-### [X] Task 4.2: Virtualized App List
-**Priority**: LOW  
-**Estimated Effort**: 2 hours  
-**Dependencies**: react-window or similar library
-
-**Acceptance Criteria**:
-- [x] Only visible apps rendered
-- [x] Smooth scrolling
-- [x] Works with 1000+ apps
-- [x] Maintains all functionality
-
-**Implementation Steps**:
-1. Add react-window from CDN
-2. Wrap app list in FixedSizeList
-3. Adjust item sizing
-4. Test with large datasets
-5. Ensure selection/interaction works
-
-**Code Location**: Lines 809-858
-
----
-
-## 5. Data & Storage
-
-### Task 5.1: Automatic Backup System
-**Priority**: MEDIUM  
-**Estimated Effort**: 2 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Auto-backup every 5 minutes
-- [ ] Saves to localStorage
-- [ ] Includes apps and versions
-- [ ] Restore functionality
-- [ ] Notification on backup
-
-**Implementation Steps**:
-1. Create backup interval in useEffect
-2. Serialize apps and versions to JSON
-3. Save to localStorage
-4. Create restore function
-5. Add restore UI (in export modal)
-6. Test backup and restore
-
-**Code Location**: New useEffect, export modal
-
----
-
-### Task 5.2: Cloud Sync via Fireproof
-**Priority**: LOW  
-**Estimated Effort**: 1 hour  
-**Dependencies**: Fireproof cloud endpoint
-
-**Acceptance Criteria**:
-- [ ] Database syncs to cloud
-- [ ] Works across devices
-- [ ] Conflict resolution
-- [ ] Sync status indicator
-
-**Implementation Steps**:
-1. Update Fireproof initialization with sync options
-2. Configure cloud endpoint
-3. Test cross-device sync
-4. Add sync status indicator to UI
-5. Handle sync errors
-
-**Code Location**: Line 54
-
----
-
-### Task 5.3: Export to GitHub
-**Priority**: LOW  
-**Estimated Effort**: 4 hours  
-**Dependencies**: GitHub API or Puter git integration
-
-**Acceptance Criteria**:
-- [ ] Creates GitHub repository
-- [ ] Pushes app code
-- [ ] Includes README
-- [ ] Links shown in UI
-
-**Implementation Steps**:
-1. Research Puter git integration
-2. Create `exportToGitHub()` function
-3. Implement repo creation
-4. Implement code push
-5. Add button to app details
-6. Test with GitHub account
-
-**Code Location**: New function, app details card
-
----
-
-## 6. Security & Reliability
-
-### Task 6.1: Code Size Limits
-**Priority**: MEDIUM  
-**Estimated Effort**: 30 minutes  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Enforces 500KB max code size
-- [ ] Clear error message
-- [ ] Check during generation
-- [ ] Check during edit
-
-**Implementation Steps**:
-1. Define MAX_CODE_SIZE constant
-2. Add size check after AI generation
-3. Add size check before redeploy
-4. Provide user-friendly error
-5. Test with large code samples
-
-**Code Location**: Lines 212-216, 304-355
-
----
-
-### Task 6.2: Rate Limiting UI
-**Priority**: LOW  
-**Estimated Effort**: 1 hour  
-**Dependencies**: Puter API rate limit info
-
-**Acceptance Criteria**:
-- [ ] Displays remaining API calls
-- [ ] Updates after each request
-- [ ] Warning when limit approaching
-- [ ] Disables actions when limit reached
-
-**Implementation Steps**:
-1. Add `rateLimitInfo` state
-2. Parse rate limit from API responses
-3. Display in header or near action buttons
-4. Add warning UI
-5. Test with actual rate limits
-
-**Code Location**: Header area
-
----
-
-### Task 6.3: Input Sanitization
-**Priority**: MEDIUM  
-**Estimated Effort**: 1 hour  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Sanitizes user inputs
-- [ ] Removes HTML tags from text inputs
-- [ ] Enforces max lengths
-- [ ] Prevents XSS attacks
-
-**Implementation Steps**:
-1. Create `sanitizeInput()` function
-2. Apply to all text inputs
-3. Add max length checks
-4. Test with malicious inputs
-5. Ensure functionality not broken
-
-**Code Location**: Input handlers throughout
-
----
-
-## 7. Advanced Features
-
-### [X] Task 7.1: AI Chat for Iterative Edits
-**Priority**: LOW  
-**Estimated Effort**: 6 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [x] Chat interface for selected app
-- [x] Maintains conversation context
-- [x] AI suggests code improvements
-- [x] Apply suggestions with one click
-- [x] Chat history saved
-
-**Implementation Steps**:
-1. ✅ Created chat UI component with ChatMessage, ChatInput, ChatPanel
-2. ✅ Added `chatHistory`, `chatInput`, `isChatVisible`, `isChatLoading`, `suggestions` state
-3. ✅ Implemented `iterateOnApp()` function for AI communication
-4. ✅ Maintained context across messages with conversation history
-5. ✅ Parsed AI suggestions with code blocks and applied suggestions
-6. ✅ Added chat panel to preview area with toggle button
-7. ✅ Tested conversation flow and suggestion application
-
-**Code Location**: Lines 136-141 (state), 215-386 (functions), 1367-1496 (components), 2104 (integration)
-
-**Status**: ✅ COMPLETED - Full AI chat interface with iterative editing capabilities
-
----
-
-### [X] Task 7.2: Version Diff Viewer
-**Priority**: LOW  
-**Estimated Effort**: 3 hours  
-**Dependencies**: diff library
-
-**Acceptance Criteria**:
-- [x] Shows changes between versions
-- [x] Color-coded additions/deletions
-- [x] Side-by-side or unified view
-- [x] Works with version history
-
-**Implementation Steps**:
-1. ✅ Add diff library from CDN
-2. ✅ Create VersionDiff component
-3. ✅ Calculate diff between versions
-4. ✅ Render with color coding
-5. ✅ Add to version history modal
-6. ✅ Test with various code changes
-
-**Code Location**: Version history modal
-
-**Status**: ✅ COMPLETED - Full version diff viewer with unified and side-by-side views, color-coded changes, and neomorphic styling
-
----
-
-### [X] Task 7.3: QR Code Generator
-**Priority**: LOW  
-**Estimated Effort**: 1 hour  
-**Dependencies**: qrcode library
-
-**Acceptance Criteria**:
-- [x] Generates QR code for app URL
-- [x] Displays in share modal
-- [x] Downloadable image
-- [x] Mobile-friendly scanning
-
-**Implementation Steps**:
-1. ✅ Add qrcode library from CDN
-2. ✅ Create `generateQR()` function
-3. ✅ Add QR code to share modal
-4. ✅ Add download button
-5. ✅ Test with mobile device
-
-**Code Location**: Share modal
-
-**Status**: ✅ COMPLETED - Full QR code generator with mobile-friendly display, download functionality, and seamless integration with existing share modal
-
----
-
-## 8. Code Quality & Maintenance
-
-### Task 8.1: Component Extraction
-**Priority**: MEDIUM  
-**Estimated Effort**: 8 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Separate files for major components
-- [ ] Reduced main App component size
-- [ ] Maintained functionality
-- [ ] Improved code organization
-
-**Implementation Steps**:
-1. Create AppList component
-2. Create AppBuilder component
-3. Create AppPreview component
-4. Create AppDetails component
-5. Create modal components
-6. Move logic to components
-7. Test all functionality
-8. Refactor imports
-
-**Code Location**: Entire index.html
-
----
-
-### Task 8.2: Custom Hooks
-**Priority**: LOW  
-**Estimated Effort**: 4 hours  
-**Dependencies**: Task 8.1
-
-**Acceptance Criteria**:
-- [ ] useAppManagement hook
-- [ ] usePuterSDK hook
-- [ ] useModels hook
-- [ ] Simplified component logic
-
-**Implementation Steps**:
-1. Create useAppManagement hook (CRUD operations)
-2. Create usePuterSDK hook (SDK initialization)
-3. Create useModels hook (model fetching/filtering)
-4. Extract logic from components
-5. Test hooks in isolation
-6. Update components to use hooks
-
-**Code Location**: New hook files
-
----
-
-### Task 8.3: Add JSDoc Comments
-**Priority**: LOW  
-**Estimated Effort**: 3 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] All functions documented
-- [ ] Parameter types specified
-- [ ] Return types specified
-- [ ] Examples for complex functions
-
-**Implementation Steps**:
-1. Document buildAndDeploy()
-2. Document updateAndRedeploy()
-3. Document deleteApp()
-4. Document all helper functions
-5. Document state variables
-6. Review and refine
-
-**Code Location**: Throughout code
-
----
-
-### Task 8.4: Error Boundary
-**Priority**: MEDIUM  
-**Estimated Effort**: 1.5 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Catches React errors
-- [ ] Shows error fallback UI
-- [ ] Logs errors
-- [ ] Allows recovery
-
-**Implementation Steps**:
-1. Create ErrorBoundary component
-2. Implement error catching
-3. Create error fallback UI
-4. Wrap App component
-5. Test with intentional errors
-
-**Code Location**: Root level
-
----
-
-### Task 8.5: Unit Tests
-**Priority**: LOW  
-**Estimated Effort**: 12 hours  
-**Dependencies**: Test framework setup
-
-**Acceptance Criteria**:
-- [ ] Test coverage >70%
-- [ ] Core functions tested
-- [ ] Component tests
-- [ ] Integration tests
-
-**Implementation Steps**:
-1. Set up test framework (Jest/Vitest)
-2. Write tests for validateHTML()
-3. Write tests for sanitization
-4. Write tests for app CRUD
-5. Write component tests
-6. Write integration tests
-7. Achieve target coverage
-
-**Code Location**: New test files
-
----
-
-## 9. Documentation
-
-### Task 9.1: README.md
-**Priority**: MEDIUM  
-**Estimated Effort**: 2 hours  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Project description
-- [ ] Features list
-- [ ] Setup instructions
-- [ ] Usage guide
-- [ ] Architecture overview
-- [ ] Contributing guidelines
-
-**Implementation Steps**:
-1. Write project overview
-2. List key features
-3. Document setup process
-4. Create usage examples
-5. Add architecture diagram
-6. Include contribution guide
-7. Review and polish
-
-**Code Location**: New README.md file
-
----
-
-### Task 9.2: CHANGELOG.md
-**Priority**: LOW  
-**Estimated Effort**: 1 hour  
-**Dependencies**: None
-
-**Acceptance Criteria**:
-- [ ] Version history tracked
-- [ ] Changes categorized (Added, Fixed, Changed)
-- [ ] Dates included
-- [ ] Follows semantic versioning
-
-**Implementation Steps**:
-1. Create CHANGELOG.md
-2. Document initial version
-3. Establish version numbering
-4. Set up template for future entries
-5. Update with each release
-
-**Code Location**: New CHANGELOG.md file
-
----
-
-## 10. Testing & Validation
-
-### Task 10.1: Cross-browser Testing
-**Priority**: HIGH  
-**Estimated Effort**: 4 hours  
-**Dependencies**: All features implemented
-
-**Acceptance Criteria**:
-- [ ] Works in Chrome
-- [ ] Works in Firefox
-- [ ] Works in Safari
-- [ ] Works in Edge
-- [ ] Documented browser issues
-
-**Implementation Steps**:
-1. Test in Chrome (latest)
-2. Test in Firefox (latest)
-3. Test in Safari (latest)
-4. Test in Edge (latest)
-5. Document any issues
-6. Fix critical browser bugs
-
-**Code Location**: N/A (testing)
-
----
-
-### Task 10.2: Mobile Responsiveness Testing
-**Priority**: MEDIUM  
-**Estimated Effort**: 3 hours  
-**Dependencies**: All UI complete
-
-**Acceptance Criteria**:
-- [ ] Works on iOS Safari
-- [ ] Works on Android Chrome
-- [ ] Touch targets adequate (44x44px min)
-- [ ] All features accessible
-- [ ] Smooth scrolling
-
-**Implementation Steps**:
-1. Test on iOS device
-2. Test on Android device
-3. Test various screen sizes
-4. Fix responsive issues
-5. Optimize touch interactions
-
-**Code Location**: N/A (testing)
-
----
-
-### Task 10.3: Performance Benchmarking
-**Priority**: LOW  
-**Estimated Effort**: 2 hours  
-**Dependencies**: All features complete
-
-**Acceptance Criteria**:
-- [ ] Lighthouse score >90
-- [ ] Fast initial load (<2s)
-- [ ] Smooth interactions (60fps)
-- [ ] Efficient memory usage
-
-**Implementation Steps**:
-1. Run Lighthouse audit
-2. Measure load times
-3. Profile performance
-4. Identify bottlenecks
-5. Implement optimizations
-6. Re-test and validate
-
-**Code Location**: N/A (testing)
-
----
-
-## Task Priority Summary
-
-### Immediate (This Week)
-1. Task 1.1: Directory Cleanup
-2. Task 1.3: Enhanced HTML Validation
-3. Task 10.1: Cross-browser Testing
-
-### Short-term (Next 2 Weeks)
-1. Task 2.1: Dark Mode Support
-2. Task 3.1: Loading Progress Indicator
-3. Task 6.1: Code Size Limits
-4. Task 9.1: README.md
-
-### Medium-term (Next Month)
-1. Task 2.3: Tag System
-2. Task 3.4: Code Editor Syntax Highlighting
-3. Task 4.1: Debounced Search
-4. Task 5.1: Automatic Backup
-5. Task 8.1: Component Extraction
-
-### Long-term (Future)
-1. Task 7.1: AI Chat Interface
-2. Task 7.2: Version Diff Viewer
-3. Task 8.5: Unit Tests
-4. All other LOW priority tasks
-
-## Estimation Summary
-
-- **Total Tasks**: 38
-- **High Priority**: 5 tasks (~12 hours)
-- **Medium Priority**: 13 tasks (~35 hours)
-- **Low Priority**: 20 tasks (~53 hours)
-- **Total Estimated Effort**: ~100 hours
+# Implementation Plan
+
+## Phase 1: Core Infrastructure Enhancements
+
+- [ ] 1.1 Implement Drag-and-Drop Component Editor
+  - Install React DnD library and create drag context provider
+  - Add drag handles and visual indicators to component elements
+  - Implement drop zone logic for rearranging HTML structure
+  - Create unit tests for drag-and-drop interactions
+  - _Requirements: 1.1.1, 1.1.2, 1.1.3, 1.1.4_
+
+- [ ] 1.2 Create Customizable Theme System
+  - Implement CSS custom properties for theme variables
+  - Create ThemeProvider component with localStorage persistence
+  - Build theme selector UI with color picker integration
+  - Add theme transition animations and validation
+  - _Requirements: 1.2.1, 1.2.2, 1.2.3, 1.2.4_
+
+- [ ] 1.3 Add Voice Input for Prompts
+  - Integrate Web Speech API with permission handling
+  - Create VoiceInput component with recording states
+  - Implement speech-to-text conversion and prompt population
+  - Add error handling for unsupported browsers
+  - _Requirements: 1.3.1, 1.3.2, 1.3.3, 1.3.4_
+
+- [ ] 1.4 Enhance Mobile Responsiveness
+  - Implement touch gesture handlers using Hammer.js
+  - Create responsive layout utilities with CSS Grid/Flexbox
+  - Add swipe navigation for mobile panels
+  - Optimize touch target sizes and spacing
+  - _Requirements: 1.4.1, 1.4.2, 1.4.3, 1.4.4_
+
+- [ ] 1.5 Expand Keyboard Shortcuts System
+  - Extend existing KeyboardShortcutsModal with new actions
+  - Implement global key event listeners with conflict resolution
+  - Add shortcut customization and persistence
+  - Create keyboard shortcut documentation component
+  - _Requirements: 1.5.1, 1.5.2, 1.5.3, 1.5.4_
+
+## Phase 2: Advanced App Building Features
+
+- [ ] 2.1 Implement Multi-File App Support
+  - Modify app generation to create separate HTML, CSS, JS files
+  - Create file tabs interface for multi-file editing
+  - Update export functionality for multi-file packaging
+  - Implement file-specific syntax highlighting and validation
+  - _Requirements: 2.1.1, 2.1.2, 2.1.3, 2.1.4_
+
+- [ ] 2.2 Build Component Library System
+  - Create component database with metadata and previews
+  - Implement component picker modal with search functionality
+  - Add drag-and-drop insertion from library to app
+  - Build component usage analytics and favorites
+  - _Requirements: 2.2.1, 2.2.2, 2.2.3, 2.2.4_
+
+- [ ] 2.3 Add App Cloning and Forking
+  - Implement deep clone functionality for app objects
+  - Create version branching system with Git-like operations
+  - Add clone/fork UI buttons with progress indicators
+  - Build conflict resolution for forked app modifications
+  - _Requirements: 2.3.1, 2.3.2, 2.3.3, 2.3.4_
+
+- [ ] 2.4 Implement Batch Operations
+  - Create selection system with checkboxes for app lists
+  - Build bulk action toolbar with confirmation dialogs
+  - Implement batch delete, export, and tagging operations
+  - Add progress indicators for long-running batch operations
+  - _Requirements: 2.4.1, 2.4.2, 2.4.3, 2.4.4_
+
+- [ ] 2.5 Integrate Code Linting and AI Suggestions
+  - Implement ESLint integration with custom rules
+  - Create AI suggestion engine using language models
+  - Add inline error highlighting and quick-fix actions
+  - Build suggestion acceptance and learning system
+  - _Requirements: 2.5.1, 2.5.2, 2.5.3, 2.5.4_
+
+## Phase 3: Collaboration and Sharing
+
+- [ ] 3.1 Implement Real-Time Collaboration
+  - Set up WebSocket infrastructure with Socket.io
+  - Implement operational transformation for concurrent edits
+  - Create user presence indicators and cursor tracking
+  - Add conflict resolution UI for simultaneous changes
+  - _Requirements: 3.1.1, 3.1.2, 3.1.3, 3.1.4_
+
+- [ ] 3.2 Build Commenting System
+  - Create comment threads with user avatars and timestamps
+  - Implement comment positioning relative to code elements
+  - Add notification system for comment replies
+  - Build comment search and filtering functionality
+  - _Requirements: 3.2.1, 3.2.2, 3.2.3, 3.2.4_
+
+- [ ] 3.3 Develop Team Workspaces
+  - Implement workspace data model with member roles
+  - Create workspace creation and invitation system
+  - Build shared app lists with permission controls
+  - Add workspace analytics and activity tracking
+  - _Requirements: 3.3.1, 3.3.2, 3.3.3, 3.3.4_
+
+- [ ] 3.4 Add Live Preview Sharing
+  - Generate temporary URLs with expiration tokens
+  - Implement preview server with authentication
+  - Create sharing modal with access controls
+  - Add preview analytics and engagement tracking
+  - _Requirements: 3.4.1, 3.4.2, 3.4.3, 3.4.4_
+
+- [ ] 3.5 Implement Role-Based Permissions
+  - Create permission system with hierarchical roles
+  - Implement access control middleware for all operations
+  - Build permission management UI for workspace admins
+  - Add audit logging for permission changes
+  - _Requirements: 3.5.1, 3.5.2, 3.5.3, 3.5.4_
+
+## Phase 4: Security and Performance
+
+- [ ] 4.1 Enhance App Sandboxing
+  - Implement strict Content Security Policy headers
+  - Add iframe sandbox attributes with granular permissions
+  - Create security audit logging for sandbox violations
+  - Build security monitoring dashboard
+  - _Requirements: 7.1.1, 7.1.2, 7.1.3, 7.1.4_
+
+- [ ] 4.2 Implement Data Encryption
+  - Add client-side encryption for sensitive data storage
+  - Implement secure key management and rotation
+  - Create encrypted data synchronization
+  - Build secure backup and recovery mechanisms
+  - _Requirements: 7.2.1, 7.2.2, 7.2.3, 7.2.4_
+
+- [ ] 4.3 Add Auto-Save and Recovery
+  - Implement automatic save timers with debouncing
+  - Create local storage recovery system for crashes
+  - Build session restoration UI with conflict resolution
+  - Add data integrity validation for recovered content
+  - _Requirements: 6.1.1, 6.1.2, 6.1.3, 6.1.4_
+
+- [ ] 4.4 Implement Offline Mode
+  - Set up Service Worker for caching strategies
+  - Create offline detection and synchronization queues
+  - Build conflict resolution for online/offline merges
+  - Implement progressive loading for cached resources
+  - _Requirements: 6.2.1, 6.2.2, 6.2.3, 6.2.4_
+
+- [ ] 4.5 Add Progressive Web App Features
+  - Implement Web App Manifest with icons and metadata
+  - Create push notification system with subscription management
+  - Add service worker for background sync and caching
+  - Build install prompts and PWA update handling
+  - _Requirements: 6.5.1, 6.5.2, 6.5.3, 6.5.4_
+
+## Phase 5: Integrations and Analytics
+
+- [ ] 5.1 Implement GitHub Integration
+  - Create OAuth flow for GitHub authentication
+  - Implement repository synchronization and push/pull operations
+  - Build conflict resolution UI for merge conflicts
+  - Add GitHub webhook handling for automated sync
+  - _Requirements: 4.1.1, 4.1.2, 4.1.3, 4.1.4_
+
+- [ ] 5.2 Build Analytics Dashboard
+  - Implement event tracking system with privacy controls
+  - Create dashboard components with charts and metrics
+  - Add A/B testing framework with statistical analysis
+  - Build data export functionality for external analysis
+  - _Requirements: 5.1.1, 5.1.2, 5.1.3, 5.1.4_
+
+- [ ] 5.3 Add Third-Party API Integrations
+  - Create API configuration system with authentication
+  - Implement request/response transformation middleware
+  - Build error handling and retry logic for API calls
+  - Add API usage monitoring and rate limit management
+  - _Requirements: 4.2.1, 4.2.2, 4.2.3, 4.2.4_
+
+- [ ] 5.4 Implement Email Notification System
+  - Set up email service integration with templates
+  - Create notification preferences and subscription management
+  - Build email analytics and delivery tracking
+  - Implement unsubscribe functionality and compliance
+  - _Requirements: 4.5.1, 4.5.2, 4.5.3, 4.5.4_
+
+- [ ] 5.5 Create Plugin System Architecture
+  - Implement plugin loader with sandboxing and isolation
+  - Create plugin API with hooks and extension points
+  - Build plugin marketplace with discovery and installation
+  - Add plugin management UI and version control
+  - _Requirements: 4.3.1, 4.3.2, 4.3.3, 4.3.4_
+
+## Phase 6: AI and Automation
+
+- [ ] 6.1 Implement AI-Powered Code Completion
+  - Integrate AI completion API with context awareness
+  - Create suggestion ranking and filtering system
+  - Build completion acceptance analytics and learning
+  - Add completion customization based on user preferences
+  - _Requirements: 10.1.1, 10.1.2, 10.1.3, 10.1.4_
+
+- [ ] 6.2 Build Automated Testing Framework
+  - Create test generation engine using AI analysis
+  - Implement test execution pipeline with reporting
+  - Build test result analysis and failure diagnosis
+  - Add test coverage tracking and optimization
+  - _Requirements: 10.2.1, 10.2.2, 10.2.3, 10.2.4_
+
+- [ ] 6.3 Add Smart Error Detection
+  - Implement code analysis engine for common patterns
+  - Create suggestion system with fix generation
+  - Build error tracking and prevention analytics
+  - Add contextual help and documentation links
+  - _Requirements: 10.3.1, 10.3.2, 10.3.3, 10.3.4_
+
+- [ ] 6.4 Implement Content Generation Tools
+  - Create AI-powered text and image generation APIs
+  - Build content insertion and editing workflows
+  - Implement content quality validation and enhancement
+  - Add content library with reuse and versioning
+  - _Requirements: 10.4.1, 10.4.2, 10.4.3, 10.4.4_
+
+- [ ] 6.5 Build Workflow Automation System
+  - Create workflow builder with visual drag-and-drop
+  - Implement trigger system with event monitoring
+  - Build action execution engine with error handling
+  - Add workflow analytics and optimization suggestions
+  - _Requirements: 10.5.1, 10.5.2, 10.5.3, 10.5.4_
+
+## Phase 7: Advanced Features
+
+- [ ] 7.1 Implement Accessibility Checker
+  - Create WCAG compliance scanning engine
+  - Build accessibility issue highlighting and reporting
+  - Implement automated fix suggestions and application
+  - Add accessibility testing integration with screen readers
+  - _Requirements: 8.1.1, 8.1.2, 8.1.3, 8.1.4_
+
+- [ ] 7.2 Add Multi-Language Support
+  - Implement internationalization framework with react-i18next
+  - Create translation management system with context
+  - Build language switching with locale persistence
+  - Add RTL language support and layout adaptation
+  - _Requirements: 8.2.1, 8.2.2, 8.2.3, 8.2.4_
+
+- [ ] 7.3 Develop Template Marketplace
+  - Create template submission and validation system
+  - Build marketplace UI with search and filtering
+  - Implement template installation and customization
+  - Add template ratings and review system
+  - _Requirements: 11.1.1, 11.1.2, 11.1.3, 11.1.4_
+
+- [ ] 7.4 Implement Asset Library Management
+  - Create file upload system with validation and optimization
+  - Build asset organization with folders and metadata
+  - Implement asset search and usage tracking
+  - Add asset transformation and CDN integration
+  - _Requirements: 11.2.1, 11.2.2, 11.2.3, 11.2.4_
+
+- [ ] 7.5 Add Mobile App Export
+  - Implement React Native project generation
+  - Create Cordova/PhoneGap wrapper generation
+  - Build mobile-specific optimization and packaging
+  - Add platform-specific build configuration and testing
+  - _Requirements: 9.1.1, 9.1.2, 9.1.3, 9.1.4_
+
+## Phase 8: Testing and Quality Assurance
+
+- [ ] 8.1 Implement Comprehensive Unit Testing
+  - Create test suites for all React components with RTL
+  - Build service layer testing with mocked dependencies
+  - Implement model and utility function test coverage
+  - Add test automation and CI/CD integration
+  - _Requirements: Testing Strategy Requirements_
+
+- [ ] 8.2 Build Integration Testing Framework
+  - Create API endpoint testing with contract validation
+  - Implement cross-component interaction tests
+  - Build database integration testing with fixtures
+  - Add performance regression testing
+  - _Requirements: Testing Strategy Requirements_
+
+- [ ] 8.3 Implement End-to-End Testing
+  - Create user workflow tests with Playwright/Cypress
+  - Build visual regression testing for UI components
+  - Implement accessibility testing automation
+  - Add cross-browser compatibility testing
+  - _Requirements: Testing Strategy Requirements_
+
+- [ ] 8.4 Add Performance Monitoring
+  - Implement runtime performance tracking and alerting
+  - Create performance dashboards with historical data
+  - Build automated performance regression detection
+  - Add performance optimization recommendations
+  - _Requirements: 6.4.1, 6.4.2, 6.4.3, 6.4.4_
+
+- [ ] 8.5 Implement Security Testing
+  - Create automated security scanning and vulnerability detection
+  - Build penetration testing automation for common attacks
+  - Implement security header validation and compliance checking
+  - Add security monitoring and incident response
+  - _Requirements: Security Requirements_
+
+## Phase 9: Deployment and Operations
+
+- [ ] 9.1 Implement Custom Domain Support
+  - Create DNS configuration and SSL certificate management
+  - Build domain validation and ownership verification
+  - Implement custom domain routing and CDN integration
+  - Add domain analytics and performance monitoring
+  - _Requirements: 12.2.1, 12.2.2, 12.2.3, 12.2.4_
+
+- [ ] 9.2 Build Staging Environment System
+  - Create environment cloning and synchronization
+  - Implement deployment pipelines with approval workflows
+  - Build environment-specific configuration management
+  - Add staging analytics and comparison tools
+  - _Requirements: 12.3.1, 12.3.2, 12.3.3, 12.3.4_
+
+- [ ] 9.3 Implement Rollback Automation
+  - Create version snapshot and restoration system
+  - Build automated rollback triggers based on monitoring
+  - Implement gradual rollback with traffic shifting
+  - Add rollback validation and verification
+  - _Requirements: 12.4.1, 12.4.2, 12.4.3, 12.4.4_
+
+- [ ] 9.4 Develop Deployment Pipelines
+  - Create visual pipeline builder with stage configuration
+  - Implement deployment automation with rollback capabilities
+  - Build deployment analytics and success metrics
+  - Add multi-environment deployment support
+  - _Requirements: 12.5.1, 12.5.2, 12.5.3, 12.5.4_
+
+- [ ] 9.5 Add Git Integration
+  - Implement full Git repository management
+  - Create branching and merging workflows
+  - Build commit management and history tracking
+  - Add Git-based deployment and rollback
+  - _Requirements: 12.1.1, 12.1.2, 12.1.3, 12.1.4_

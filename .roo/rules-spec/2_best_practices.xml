@@ -1,0 +1,197 @@
+<best_practices>
+  <general_principles>
+    <principle priority="high">
+      <name>Iterative User Approval</name>
+      <description>Always seek explicit user approval at each phase transition</description>
+      <rationale>Ensures user satisfaction and prevents misaligned development</rationale>
+      <example>
+        <scenario>Moving from requirements to design phase</scenario>
+        <good>Ask user "Do the requirements look good? If so, we can move on to the design."</good>
+        <bad>Proceed to design without user confirmation</bad>
+      </example>
+    </principle>
+
+    <principle priority="high">
+      <name>EARS Requirements Format</name>
+      <description>Use Easy Approach to Requirements Syntax for clear, testable requirements</description>
+      <rationale>EARS format ensures requirements are unambiguous and verifiable</rationale>
+      <example>
+        <scenario>Writing acceptance criteria</scenario>
+        <good>WHEN user clicks submit THEN system SHALL validate input fields</good>
+        <bad>User should be able to submit forms</bad>
+      </example>
+    </principle>
+
+    <principle priority="medium">
+      <name>Research-Driven Design</name>
+      <description>Conduct research during design phase and cite sources</description>
+      <rationale>Informed design decisions lead to better implementations</rationale>
+      <example>
+        <scenario>Choosing authentication method</scenario>
+        <good>Research OAuth 2.0 vs JWT, cite security articles, explain decision</good>
+        <bad>Choose authentication method without research</bad>
+      </example>
+    </principle>
+
+    <principle priority="medium">
+      <name>Coding-Focused Tasks</name>
+      <description>Implementation tasks must involve writing, modifying, or testing code</description>
+      <rationale>Ensures tasks are actionable by coding agents</rationale>
+      <example>
+        <scenario>Task description</scenario>
+        <good>Implement User model with validation methods and unit tests</good>
+        <bad>Research user authentication best practices</bad>
+      </example>
+    </principle>
+  </general_principles>
+
+  <requirements_best_practices>
+    <practice category="user_stories">
+      <rule>Follow "As a [role], I want [feature], so that [benefit]" format</rule>
+      <examples>
+        <good>As a website visitor, I want to search for products, so that I can find items I need quickly</good>
+        <bad>I want a search feature</bad>
+      </examples>
+    </practice>
+
+    <practice category="acceptance_criteria">
+      <rule>Use EARS format: WHEN [event] THEN [system] SHALL [response]</rule>
+      <examples>
+        <good>WHEN user enters invalid email THEN system SHALL display error message</good>
+        <bad>System should handle invalid input</bad>
+      </examples>
+    </practice>
+
+    <practice category="completeness">
+      <rule>Consider edge cases, user experience, and technical constraints</rule>
+      <guidelines>
+        <guideline>Include both happy path and error scenarios</guideline>
+        <guideline>Consider performance and scalability requirements</guideline>
+        <guideline>Address security and data validation needs</guideline>
+        <guideline>Include accessibility requirements</guideline>
+      </guidelines>
+    </practice>
+  </requirements_best_practices>
+
+  <design_best_practices>
+    <practice category="architecture">
+      <rule>Provide clear system boundaries and component interactions</rule>
+      <guidelines>
+        <guideline>Use diagrams or visual representations when appropriate</guideline>
+        <guideline>Document interfaces and data flow</guideline>
+        <guideline>Explain design decisions and their rationales</guideline>
+        <guideline>Consider scalability and maintainability</guideline>
+      </guidelines>
+    </practice>
+
+    <practice category="research_integration">
+      <rule>Incorporate research findings directly into design decisions</rule>
+      <guidelines>
+        <guideline>Summarize key research findings that inform design</guideline>
+        <guideline>Cite sources and include relevant links</guideline>
+        <guideline>Use research to validate design choices</guideline>
+        <guideline>Consider multiple approaches and explain selection</guideline>
+      </guidelines>
+    </practice>
+
+    <practice category="component_design">
+      <rule>Break down complex features into manageable components</rule>
+      <guidelines>
+        <guideline>Define clear component responsibilities</guideline>
+        <guideline>Specify interfaces between components</guideline>
+        <guideline>Consider component reusability</guideline>
+        <guideline>Plan for testing at component level</guideline>
+      </guidelines>
+    </practice>
+  </design_best_practices>
+
+  <task_best_practices>
+    <practice category="task_granularity">
+      <rule>Create discrete, manageable coding tasks</rule>
+      <guidelines>
+        <guideline>Each task should be completable in one session</guideline>
+        <guideline>Avoid tasks that require multiple complex steps</guideline>
+        <guideline>Break down complex functionality into smaller pieces</guideline>
+        <guideline>Ensure tasks build incrementally on previous steps</guideline>
+      </guidelines>
+    </practice>
+
+    <practice category="task_wording">
+      <rule>Write clear, actionable task descriptions</rule>
+      <guidelines>
+        <guideline>Start with action verbs (Implement, Create, Modify, Test)</guideline>
+        <guideline>Specify what files or components to work on</guideline>
+        <guideline>Include acceptance criteria in sub-bullets</guideline>
+        <guideline>Reference specific requirements from requirements document</guideline>
+      </guidelines>
+    </practice>
+
+    <practice category="test_driven_development">
+      <rule>Prioritize test-driven development where appropriate</rule>
+      <guidelines>
+        <guideline>Write tests before implementation when possible</guideline>
+        <guideline>Include unit tests as part of implementation tasks</guideline>
+        <guideline>Plan integration tests for component interactions</guideline>
+        <guideline>Consider end-to-end testing for user workflows</guideline>
+      </guidelines>
+    </practice>
+  </task_best_practices>
+
+  <common_pitfalls>
+    <pitfall>
+      <description>Skipping user approval cycles</description>
+      <why_problematic>Leads to misaligned expectations and wasted effort</why_problematic>
+      <correct_approach>Always ask for explicit approval before moving to next phase</correct_approach>
+    </pitfall>
+
+    <pitfall>
+      <description>Creating requirements without user stories</description>
+      <why_problematic>Missing user perspective leads to feature misalignment</why_problematic>
+      <correct_approach>Include clear user stories for every requirement</correct_approach>
+    </pitfall>
+
+    <pitfall>
+      <description>Including non-coding tasks in implementation plan</description>
+      <why_problematic>Tasks cannot be executed by coding agents</why_problematic>
+      <correct_approach>Focus exclusively on writing, modifying, and testing code</correct_approach>
+    </pitfall>
+
+    <pitfall>
+      <description>Creating overly complex or vague tasks</description>
+      <why_problematic>Coding agents cannot execute unclear or multi-step tasks</why_problematic>
+      <correct_approach>Break down into discrete, actionable steps</correct_approach>
+    </pitfall>
+
+    <pitfall>
+      <description>Not referencing requirements in task descriptions</description>
+      <why_problematic>Loses traceability between requirements and implementation</why_problematic>
+      <correct_approach>Always reference specific requirements in task sub-bullets</correct_approach>
+    </pitfall>
+  </common_pitfalls>
+
+  <quality_checklist>
+    <category name="requirements_phase">
+      <item>Requirements document follows EARS format</item>
+      <item>User stories included for all requirements</item>
+      <item>Acceptance criteria are testable and specific</item>
+      <item>Edge cases and error scenarios considered</item>
+      <item>User approval received before proceeding to design</item>
+    </category>
+
+    <category name="design_phase">
+      <item>Design document includes all required sections</item>
+      <item>Research findings incorporated and cited</item>
+      <item>Architecture addresses all requirements</item>
+      <item>Component interfaces clearly defined</item>
+      <item>User approval received before proceeding to tasks</item>
+    </category>
+
+    <category name="task_phase">
+      <item>All tasks focus on coding activities only</item>
+      <item>Tasks reference specific requirements</item>
+      <item>Tasks are discrete and actionable</item>
+      <item>Test-driven development prioritized where appropriate</item>
+      <item>User approval received for implementation plan</item>
+    </category>
+  </quality_checklist>
+</best_practices>

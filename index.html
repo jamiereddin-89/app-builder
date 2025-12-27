@@ -14,7 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
     <script src="https://unpkg.com/react-window/umd/react-window.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
       body {
@@ -80,6 +80,7 @@
     "use-fireproof": "https://esm.sh/use-vibes@0.18.9",
     "call-ai": "https://esm.sh/call-ai@0.18.9",
     "use-vibes": "https://esm.sh/use-vibes@0.18.9",
+    "diff": "https://esm.sh/diff@5.2.0",
     "https://esm.sh/use-fireproof": "https://esm.sh/use-vibes@0.18.9",
     "https://esm.sh/use-vibes": "https://esm.sh/use-vibes@0.18.9"
   }
@@ -92,43 +93,99 @@
       import React, { useState, useEffect, useRef, useDeferredValue } from "react";
 import { useFireproof } from "use-fireproof";
 
-// Import react-window components from global object with error handling
-const { FixedSizeList } = window.ReactWindow || {};
+// Import extracted components
+// import { ToastContainer } from './components/Toast.js'; // Inlined below
+import { AppList, AppCard } from './components/AppList.js';
+import { AppBuilder } from './components/AppBuilder.js';
+import { AppPreview } from './components/AppPreview.js';
+import { AppDetails } from './components/AppDetails.js';
+import { TemplateModal } from './components/TemplateModal.js';
+import { ShareModal } from './components/ShareModal.js';
+import { VersionHistoryModal } from './components/VersionHistoryModal.js';
+import { ExportModal } from './components/ExportModal.js';
+import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal.js';
+import { ChatPanel } from './components/ChatPanel.js';
+import ErrorBoundary from './components/ErrorBoundary.js';
 
-// Fallback component if react-window is not available
-function VirtualizedList({ children, height, itemCount, itemSize, itemData, className }) {
-  // Simple fallback that renders all items
-  const items = [];
-  for (let i = 0; i < itemCount; i++) {
-    items.push(children({ index: i, style: {}, data: itemData }));
-  }
+// Inlined Toast Component to avoid module loading issues with Babel
+function Toast({ toast, onRemove }) {
+  const isSuccess = toast.type === "success";
+  const isError = toast.type === "error";
+  
+  const toastStyles = isSuccess 
+    ? "bg-green-500 text-white shadow-[inset_2px_2px_4px_#16a34a,inset_-2px_-2px_4px_#22c55e]"
+    : isError 
+    ? "bg-red-500 text-white shadow-[inset_2px_2px_4px_#dc2626,inset_-2px_-2px_4px_#ef4444]"
+    : "bg-[#e8e8e8] shadow-[inset_4px_4px_8px_#c5c5c5,inset_-4px_-4px_8px_#ffffff]";
+  
+  const icon = isSuccess ? "✅" : isError ? "❌" : "ℹ️";
+  
   return (
-    <div className={className} style={{ height, overflow: 'auto' }}>
-      {items}
+    <div className={`${toastStyles} rounded-2xl p-4 mb-3 flex items-center gap-3 transform transition-all duration-300 ease-in-out animate-in slide-in-from-right-full`}
+      style={{
+        animation: 'slideIn 0.3s ease-out forwards'
+      }}
+    >
+      <span className="text-xl">{icon}</span>
+      <span className="flex-1 font-medium">{toast.message}</span>
+      <button 
+        onClick={() => onRemove(toast.id)}
+        className="text-white hover:text-gray-200 transition-colors text-xl leading-none"
+      >
+        ×
+      </button>
     </div>
   );
 }
 
-// Use the real component if available, otherwise fallback
-const AppList = FixedSizeList || VirtualizedList;
+function ToastContainer({ toasts, removeToast }) {
+  if (toasts.length === 0) return null;
+  
+  return (
+    <div className="fixed top-4 right-4 z-50 max-w-sm w-full space-y-2">
+      {toasts.map(toast => (
+        <Toast 
+          key={toast.id} 
+          toast={toast} 
+          onRemove={removeToast} 
+        />
+      ))}
+    </div>
+  );
+}
+
+// Import custom hooks
+import { useAppManagement } from './hooks/useAppManagement.js';
+import { usePuterSDK } from './hooks/usePuterSDK.js';
+import { useModels } from './hooks/useModels.js';
 
 export default function App() {
-  const { useLiveQuery, database } = useFireproof("puter-apps-v6");
-  const { docs: apps } = useLiveQuery("type", { key: "app", descending: true });
-  const { docs: versions } = useLiveQuery("type", { key: "version", descending: true });
+  // Initialize custom hooks
+  const appManagement = useAppManagement();
+  const puterSDK = usePuterSDK();
+  const modelsHook = useModels();
   
+  // Initialize SDK and toast functions
+  useEffect(() => {
+    puterSDK.initToast(showToast);
+    modelsHook.initToast(showToast);
+    appManagement.initToast(showToast);
+    puterSDK.initPuterSDK();
+  }, []);
+  
+  // State from hooks
+  const { apps, versions, generating, generationStage } = appManagement;
+  const { puter, user } = puterSDK;
+  const { models } = modelsHook;
+  
+  // Local state
   const [prompt, setPrompt] = useState("");
   const [appName, setAppName] = useState("");
   const [appTitle, setAppTitle] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [generationStage, setGenerationStage] = useState("");
   const [selectedApp, setSelectedApp] = useState(null);
   const [editCode, setEditCode] = useState("");
-  const [models, setModels] = useState([]);
   const [model, setModel] = useState("gpt-4o-mini");
   const [provider, setProvider] = useState("All");
-  const [puter, setPuter] = useState(null);
-  const [user, setUser] = useState(null);
   const [log, setLog] = useState([]);
   const [showCode, setShowCode] = useState(false);
   const [tags, setTags] = useState([]);
@@ -458,7 +515,7 @@ Your task:
             e.preventDefault();
             // Save/redeploy if editing
             if (selectedApp && editCode && !generating) {
-              updateAndRedeploy();
+              handleUpdateAndRedeploy();
             }
           }
           break;
@@ -561,40 +618,7 @@ Your task:
     avgCodeSize: apps.length ? Math.round(apps.reduce((sum, a) => sum + (a.code?.length || 0), 0) / apps.length) : 0
   };
 
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://js.puter.com/v2/";
-    script.onload = async () => {
-      setPuter(window.puter);
-      showToast("SDK ready!", "success");
-      if (window.puter.auth.isSignedIn()) {
-        const u = await window.puter.auth.getUser();
-        setUser(u);
-        showToast(`Welcome ${u.username}!`, "success");
-      }
-    };
-    document.body.appendChild(script);
-    
-    fetch("https://api.puter.com/puterai/chat/models/")
-      .then(r => r.json())
-      .then(data => {
-        const list = (Array.isArray(data) ? data : data.models || []).map(m => {
-          const id = typeof m === "string" ? m : m.id;
-          let prov = "Other";
-          if (/gpt|o1|o3|chatgpt/i.test(id)) prov = "OpenAI";
-          else if (/claude/i.test(id)) prov = "Anthropic";
-          else if (/gemini|gemma/i.test(id)) prov = "Google";
-          else if (/llama/i.test(id)) prov = "Meta";
-          else if (/mistral|mixtral/i.test(id)) prov = "Mistral";
-          else if (/deepseek/i.test(id)) prov = "DeepSeek";
-          else if (/grok/i.test(id)) prov = "xAI";
-          else if (/qwen/i.test(id)) prov = "Alibaba";
-          return { id, provider: prov };
-        });
-        setModels(list);
-      })
-      .catch(() => {});
-   }, []);
+
 
    useEffect(() => {
      try {
@@ -654,100 +678,15 @@ Your task:
      setPreviewZoom(1.0);
    };
 
-   // App duplication function
-   async function duplicateApp(appToDuplicate, e) {
-     e?.stopPropagation();
-     if (!puter || !user || !appToDuplicate) return;
-     
-     try {
-       addLog(`Duplicating ${appToDuplicate.appName || appToDuplicate.subdomain}...`);
-       
-       // Generate new names with "-copy" suffix
-       const originalName = appToDuplicate.appName || appToDuplicate.subdomain;
-       const copySuffix = "-copy";
-       const baseName = originalName.replace(/(-copy)+$/, ""); // Remove existing copy suffixes
-       const newName = `${baseName}${copySuffix}`;
-       const newTitle = `${appToDuplicate.appTitle || appToDuplicate.appName}${copySuffix}`;
-       
-       // Generate new subdomain
-       const newSubdomain = newName.toLowerCase().replace(/[^a-z0-9-]/g, "") || puter.randName();
-       
-       // Create new directory with unique timestamp
-       const dirName = `app_${Date.now()}_copy`;
-       
-       // Write the same code to the new directory
-       await puter.fs.mkdir(dirName);
-       await puter.fs.write(`${dirName}/index.html`, appToDuplicate.code);
-       addLog(`Created directory: ${dirName}`);
-       
-       // Create new hosted site
-       const site = await puter.hosting.create(newSubdomain, dirName);
-       const hostedUrl = `https://${site.subdomain}.puter.site`;
-       addLog(`Hosted duplicate at: ${hostedUrl}`);
-       
-       // Create Puter app
-       let puterApp;
-       try {
-         puterApp = await puter.apps.create({
-           name: newName,
-           indexURL: hostedUrl,
-           title: newTitle,
-           description: appToDuplicate.prompt,
-           maximizeOnStart: true,
-           dedupeName: true
-         });
-         addLog(`App registered: ${puterApp.name}`);
-       } catch (appErr) {
-         addLog(`Name taken, using random...`);
-         const randomName = puter.randName();
-         puterApp = await puter.apps.create({
-           name: randomName,
-           indexURL: hostedUrl,
-           title: newTitle,
-           description: appToDuplicate.prompt,
-           maximizeOnStart: true
-         });
-         addLog(`App registered: ${puterApp.name}`);
-       }
-       
-       // Save duplicated app to database with version reset to 1
-       const doc = await database.put({
-         type: "app",
-         prompt: appToDuplicate.prompt,
-         code: appToDuplicate.code,
-         subdomain: site.subdomain,
-         hostedUrl,
-         appName: puterApp.name,
-         appUid: puterApp.uid,
-         appTitle: newTitle,
-         model: appToDuplicate.model,
-         dir: dirName,
-         createdAt: Date.now(),
-         views: 0, // Reset views for duplicate
-         favorite: false, // Reset favorite status
-         tags: [...(appToDuplicate.tags || [])], // Copy tags
-         version: 1 // Reset version to 1
-       });
-       
-       // Save initial version for the duplicate
-       await database.put({
-         type: "version",
-         appId: doc.id,
-         code: appToDuplicate.code,
-         version: 1,
-         createdAt: Date.now(),
-         note: "Initial version (duplicate)"
-       });
-       
-       const duplicated = await database.get(doc.id);
-       showToast(`App duplicated successfully as "${newTitle}"!`, "success");
-       addLog(`Duplicate saved: ${puterApp.name}`);
-       
-     } catch (err) {
-       addLog(`Duplication failed: ${err.message}`);
-       showToast(`Duplication failed: ${err.message}`, "error");
-     }
-   }
+  // Duplicate app function using hook
+  const handleDuplicateApp = async (appToDuplicate, e) => {
+    e?.stopPropagation();
+    try {
+      await appManagement.duplicateApp({ appToDuplicate, puter, user });
+    } catch (error) {
+      addLog(`Duplication failed: ${error.message}`);
+    }
+  };
    
    // Monaco Editor initialization with proper error handling
    useEffect(() => {
@@ -916,310 +855,91 @@ Your task:
      }
    }, [editCode, selectedApp, showCode, monacoInitialized]);
 
-  const providers = ["All", ...new Set(models.map(m => m.provider))].sort();
-  const filtered = provider === "All" ? models : models.filter(m => m.provider === provider);
+  // Use hook methods for providers and filtering
+  const providers = modelsHook.getProviders();
+  const filtered = modelsHook.getFilteredModels(provider);
 
-  async function signIn() {
-    if (!puter) return;
-    await puter.auth.signIn();
-    const u = await puter.auth.getUser();
-    setUser(u);
-    showToast(`Welcome ${u.username}!`, "success");
-  }
-
-  function validateHTML(code) {
-    const errors = [];
-    if (!code.toLowerCase().includes("<!doctype html>")) {
-      errors.push("Missing DOCTYPE declaration. HTML must start with &lt;!DOCTYPE html&gt;");
-    }
-    if (!/<html[^>]*>/i.test(code)) {
-      errors.push("Missing &lt;html&gt; opening tag");
-    }
-    if (!/<\/html>/i.test(code)) {
-      errors.push("Missing &lt;/html&gt; closing tag");
-    }
-    if (!/<head[^>]*>/i.test(code)) {
-      errors.push("Missing &lt;head&gt; opening tag");
-    }
-    if (!/<\/head>/i.test(code)) {
-      errors.push("Missing &lt;/head&gt; closing tag");
-    }
-    if (!/<body[^>]*>/i.test(code)) {
-      errors.push("Missing &lt;body&gt; opening tag");
-    }
-    if (!/<\/body>/i.test(code)) {
-      errors.push("Missing &lt;/body&gt; closing tag");
-    }
-    if (errors.length > 0) {
-      throw new Error("HTML Validation Failed:\n" + errors.join("\n"));
-    }
-  }
-
-  async function buildAndDeploy(customPrompt) {
+  // Build and deploy function using hook
+  const handleBuildAndDeploy = async (customPrompt) => {
     const finalPrompt = customPrompt || prompt;
-    if (!finalPrompt.trim() || !puter || !user) return;
-    setGenerating(true);
-    setGenerationStage("Initializing...");
-    setSelectedApp(null);
-    setEditCode("");
-    setLog([]);
-    setShowTemplates(false);
-    
     try {
-      addLog(`Model: ${model}`);
-      setGenerationStage("Generating code...");
-      addLog("Generating code...");
-
-      const systemPrompt = `You are an expert web developer. Create a COMPLETE single HTML file app.
-RULES:
-- Start with <!DOCTYPE html>
-- ALL CSS in <style> tag, ALL JS in <script> tag
-- Modern CSS: variables, flexbox/grid, animations, gradients
-- Modern JS: ES6+, localStorage, event handling
-- Responsive and polished UI
-- NO external dependencies
-- Return ONLY HTML code`;
-
-      const res = await puter.ai.chat([
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `Build: ${finalPrompt}` }
-      ], { model });
-
-      let code = res?.message?.content || res?.text || res?.content || String(res);
-      code = code.replace(/```html?\n?/gi, "").replace(/```\n?/g, "").trim();
-      const start = code.search(/<!doctype\s+html>/i);
-      if (start > 0) code = code.slice(start);
-      validateHTML(code);
-
-      addLog(`Generated ${code.length} bytes`);
-      
-      setGenerationStage("Creating filesystem...");
-      addLog("Creating directory...");
-      const dirName = `app_${Date.now()}`;
-      await puter.fs.mkdir(dirName);
-      await puter.fs.write(`${dirName}/index.html`, code);
-      addLog(`Wrote to ${dirName}/index.html`);
-
-      setGenerationStage("Deploying...");
-      addLog("Creating hosted site...");
-      const subdomain = appName.trim().toLowerCase().replace(/[^a-z0-9-]/g, "") || puter.randName();
-      const site = await puter.hosting.create(subdomain, dirName);
-      const hostedUrl = `https://${site.subdomain}.puter.site`;
-      addLog(`Hosted at: ${hostedUrl}`);
-
-      setGenerationStage("Registering app...");
-      addLog("Registering Puter app...");
-      const finalAppName = appName.trim() || puter.randName();
-      const finalAppTitle = appTitle.trim() || finalPrompt.slice(0, 50);
-      
-      let puterApp;
-      try {
-        puterApp = await puter.apps.create({
-          name: finalAppName,
-          indexURL: hostedUrl,
-          title: finalAppTitle,
-          description: finalPrompt,
-          maximizeOnStart: true,
-          dedupeName: true
-        });
-        addLog(`App registered: ${puterApp.name}`);
-      } catch (appErr) {
-        addLog(`Name taken, using random...`);
-        const randomName = puter.randName();
-        puterApp = await puter.apps.create({
-          name: randomName,
-          indexURL: hostedUrl,
-          title: finalAppTitle,
-          description: finalPrompt,
-          maximizeOnStart: true
-        });
-        addLog(`App registered: ${puterApp.name}`);
-      }
-
-      setGenerationStage("Saving to database...");
-      addLog("Saving to database...");
-      const doc = await database.put({
-        type: "app",
+      const newApp = await appManagement.buildAndDeploy({
         prompt: finalPrompt,
-        code,
-        subdomain: site.subdomain,
-        hostedUrl,
-        appName: puterApp.name,
-        appUid: puterApp.uid,
-        appTitle: finalAppTitle,
+        appName,
+        appTitle,
         model,
-        dir: dirName,
-        createdAt: Date.now(),
-        views: 0,
-        favorite: false,
-        tags: tags,
-        version: 1
+        tags,
+        puter,
+        user
       });
-
-      // Save initial version
-      await database.put({
-        type: "version",
-        appId: doc.id,
-        code,
-        version: 1,
-        createdAt: Date.now(),
-        note: "Initial version"
-      });
-
-      const saved = await database.get(doc.id);
-      setSelectedApp(saved);
-      setAppName("");
-      setAppTitle("");
-      setPrompt("");
-      setSelectedTemplate(null);
-      setTags([]);
-      setGenerationStage("");
-      showToast("App created and deployed successfully!", "success");
-      window.open(hostedUrl, "_blank");
-
-    } catch (err) {
-      setGenerationStage("");
-      showToast(`Error: ${err.message}`, "error");
+      if (newApp) {
+        setSelectedApp(newApp);
+        setAppName("");
+        setAppTitle("");
+        setPrompt("");
+        setSelectedTemplate(null);
+        setTags([]);
+      }
+    } catch (error) {
+      addLog(`Build failed: ${error.message}`);
     }
-    setGenerating(false);
-  }
+  };
 
-  async function updateAndRedeploy() {
-    if (!selectedApp || !editCode || !puter) return;
-    setGenerating(true);
+  // Update and redeploy function using hook
+  const handleUpdateAndRedeploy = async () => {
     try {
-      addLog("Updating...");
-
-      // Cleanup old directory
-      if (selectedApp.dir) {
-        addLog("Cleaning up old directory...");
-        try {
-          await puter.fs.rmdir(selectedApp.dir);
-          addLog("Old directory removed");
-        } catch (e) {
-          addLog("Old directory already removed or not found");
-        }
-      }
-
-      const dirName = `app_${Date.now()}`;
-      await puter.fs.mkdir(dirName);
-      await puter.fs.write(`${dirName}/index.html`, editCode);
-      
-      try { await puter.hosting.delete(selectedApp.subdomain); } catch (e) {}
-      const site = await puter.hosting.create(selectedApp.subdomain, dirName);
-      const hostedUrl = `https://${site.subdomain}.puter.site`;
-      
-      if (selectedApp.appName) {
-        try {
-          await puter.apps.update(selectedApp.appName, { indexURL: hostedUrl });
-          addLog(`Updated app: ${selectedApp.appName}`);
-        } catch (e) {}
-      }
-
-      const newVersion = (selectedApp.version || 1) + 1;
-      
-      // Save version history
-      await database.put({
-        type: "version",
-        appId: selectedApp._id,
-        code: editCode,
-        version: newVersion,
-        createdAt: Date.now(),
-        note: `Version ${newVersion}`
+      const updatedApp = await appManagement.updateAndRedeploy({
+        selectedApp,
+        editCode,
+        puter,
+        tags
       });
-      
-      await database.put({
-        ...selectedApp,
-        code: editCode,
-        dir: dirName,
-        hostedUrl,
-        updatedAt: Date.now(),
-        version: newVersion,
-        tags: tags
-      });
-      
-      const updated = await database.get(selectedApp._id);
-      setSelectedApp(updated);
-      setEditCode("");
-      showToast(`App updated to version ${newVersion}!`, "success");
-      window.open(hostedUrl, "_blank");
-    } catch (err) {
-      showToast(`Update failed: ${err.message}`, "error");
+      if (updatedApp) {
+        setSelectedApp(updatedApp);
+        setEditCode("");
+      }
+    } catch (error) {
+      addLog(`Update failed: ${error.message}`);
     }
-    setGenerating(false);
-  }
+  };
 
-  async function deleteApp(app, e) {
+  // Delete app function using hook
+  const handleDeleteApp = async (app, e) => {
     e?.stopPropagation();
     try {
-      addLog(`Deleting ${app.appName || app.subdomain}...`);
-      // Cleanup directory
-      if (app.dir) {
-        try {
-          await puter.fs.rmdir(app.dir);
-          addLog("Directory removed");
-        } catch (e) {
-          addLog("Directory already removed or not found");
-        }
+      await appManagement.deleteApp({ app, puter, versions });
+      if (selectedApp?._id === app._id) {
+        setSelectedApp(null);
+        setEditCode("");
       }
-      if (app.appName) {
-        try { await puter.apps.delete(app.appName); } catch (e) {}
-      }
-      if (app.subdomain) {
-        try { await puter.hosting.delete(app.subdomain); } catch (e) {}
-      }
-      // Delete versions
-      const appVersions = versions.filter(v => v.appId === app._id);
-      for (const v of appVersions) {
-        await database.del(v._id);
-      }
-      await database.del(app._id);
-      if (selectedApp?._id === app._id) { 
-        setSelectedApp(null); 
-        setEditCode(""); 
-      }
-      showToast("App deleted successfully!", "success");
-    } catch (e) {
-      showToast(`Delete failed: ${e.message}`, "error");
+    } catch (error) {
+      addLog(`Delete failed: ${error.message}`);
     }
-  }
+  };
 
-  async function bulkDelete() {
-    if (selectedApps.size === 0) return;
-    for (const appId of selectedApps) {
-      const app = apps.find(a => a._id === appId);
-      if (app) await deleteApp(app);
-    }
-    setSelectedApps(new Set());
-    setBulkMode(false);
-  }
+  // Bulk delete function using hook
+  const handleBulkDelete = async () => {
+    await appManagement.bulkDelete(
+      selectedApps, 
+      apps, 
+      puter, 
+      versions, 
+      setSelectedApps, 
+      setBulkMode
+    );
+  };
 
-  async function toggleFavorite(app, e) {
+  // Toggle favorite function using hook
+  const handleToggleFavorite = async (app, e) => {
     e?.stopPropagation();
-    await database.put({ ...app, favorite: !app.favorite });
-    if (selectedApp?._id === app._id) {
-      setSelectedApp({ ...app, favorite: !app.favorite });
-    }
-  }
+    await appManagement.toggleFavorite(app, setSelectedApp);
+  };
 
-  async function incrementViews(app) {
-    await database.put({ ...app, views: (app.views || 0) + 1 });
-  }
-
-  async function launchApp(app, e) {
+  // Launch app function using hook
+  const handleLaunchApp = async (app, e) => {
     e?.stopPropagation();
-    await incrementViews(app);
-    if (app.appName && puter) {
-      try {
-        await puter.apps.launch(app.appName);
-        showToast(`Launched ${app.appName}!`, "success");
-      } catch (err) {
-        window.open(app.hostedUrl, "_blank");
-      }
-    } else {
-      window.open(app.hostedUrl, "_blank");
-    }
-  }
+    await appManagement.launchApp(app, puter);
+  };
 
   async function restoreVersion(version) {
     if (!selectedApp) return;
@@ -1383,352 +1103,32 @@ RULES:
   const textSecondary = darkMode ? "text-[#cccccc]" : "text-[#666]";
   const textMuted = darkMode ? "text-[#888]" : "text-[#888]";
   
-  // Toast Component
-  const Toast = ({ toast, onRemove }) => {
-    const isSuccess = toast.type === "success";
-    const isError = toast.type === "error";
-    
-    const toastStyles = isSuccess 
-      ? "bg-green-500 text-white shadow-[inset_2px_2px_4px_#16a34a,inset_-2px_-2px_4px_#22c55e]"
-      : isError 
-      ? "bg-red-500 text-white shadow-[inset_2px_2px_4px_#dc2626,inset_-2px_-2px_4px_#ef4444]"
-      : neuInset;
-    
-    const icon = isSuccess ? "✅" : isError ? "❌" : "ℹ️";
+
+
+
+
+
+
+  // Test component that throws an error
+  function ErrorTestComponent() {
+    const throwError = () => {
+      throw new Error('Intentional test error for ErrorBoundary');
+    };
     
     return (
-      <div 
-        className={`${toastStyles} rounded-2xl p-4 mb-3 flex items-center gap-3 transform transition-all duration-300 ease-in-out animate-in slide-in-from-right-full`}
-        style={{
-          animation: 'slideIn 0.3s ease-out forwards'
-        }}
-      >
-        <span className="text-xl">{icon}</span>
-        <span className="flex-1 font-medium">{toast.message}</span>
-        <button 
-          onClick={() => onRemove(toast.id)}
-          className="text-white hover:text-gray-200 transition-colors text-xl leading-none"
-        >
-          ×
+      <div className={`${neu} rounded-xl p-4 mb-4`}>
+        <h3 className={`font-black ${textPrimary} mb-2`}>🧪 Error Boundary Test</h3>
+        <p className={`${textSecondary} text-sm mb-3`}>Click the button below to test the ErrorBoundary:</p>
+        <button onClick={throwError} className={`${neuBtnRed} rounded-xl px-4 py-2 font-bold text-sm`}>
+          Trigger Test Error
         </button>
       </div>
     );
-  };
-  
-  // Toast Container Component
-  const ToastContainer = () => {
-    if (toasts.length === 0) return null;
-    
-    return (
-      <div className="fixed top-4 right-4 z-50 max-w-sm w-full space-y-2">
-        {toasts.map(toast => (
-          <Toast 
-            key={toast.id} 
-            toast={toast} 
-            onRemove={removeToast} 
-          />
-        ))}
-      </div>
-    );
-  };
-
-  // Version Diff Components
-  const VersionDiff = ({ oldVersion, newVersion, viewMode = 'unified', darkMode }) => {
-    if (!oldVersion || !newVersion) {
-      return (
-        <div className={`${darkMode ? "bg-[#2a2a2a]" : "bg-[#e8e8e8]"} shadow-[inset_4px_4px_8px_#c5c5c5,inset_-4px_-4px_8px_#ffffff] rounded-xl p-4 text-center`}>
-          <div className={`${darkMode ? "text-[#cccccc]" : "text-[#666]"}`}>Select two versions to compare</div>
-        </div>
-      );
-    }
-
-    const diff = Diff.diffLines(oldVersion.code, newVersion.code);
-    const textPrimary = darkMode ? "text-[#e8e8e8]" : "text-[#1a1a1a]";
-    const textSecondary = darkMode ? "text-[#cccccc]" : "text-[#666]";
-    const bgAdded = darkMode ? "bg-[#064e3b]" : "bg-[#dcfce7]";
-    const bgRemoved = darkMode ? "bg-[#7f1d1d]" : "bg-[#fee2e2]";
-    const textAdded = darkMode ? "text-[#10b981]" : "text-[#059669]";
-    const textRemoved = darkMode ? "text-[#ef4444]" : "text-[#dc2626]";
-
-    if (viewMode === 'side-by-side') {
-      return (
-        <div className={`${darkMode ? "bg-[#2a2a2a]" : "bg-[#e8e8e8]"} shadow-[inset_4px_4px_8px_#c5c5c5,inset_-4px_-4px_8px_#ffffff] rounded-xl overflow-hidden`}>
-          <div className="flex border-b border-[#d0d0d0]">
-            <div className="flex-1 p-3">
-              <h4 className={`font-bold ${textPrimary} text-sm`}>Version {oldVersion.version}</h4>
-              <div className={`${textSecondary} text-xs`}>{new Date(oldVersion.createdAt).toLocaleString()}</div>
-            </div>
-            <div className="flex-1 p-3 border-l border-[#d0d0d0]">
-              <h4 className={`font-bold ${textPrimary} text-sm`}>Version {newVersion.version}</h4>
-              <div className={`${textSecondary} text-xs`}>{new Date(newVersion.createdAt).toLocaleString()}</div>
-            </div>
-          </div>
-          <div className="flex">
-            <div className="flex-1 max-h-96 overflow-y-auto">
-              {diff.map((part, index) => {
-                if (part.added) return null;
-                const lines = part.value.split('\n');
-                return (
-                  <div key={index} className={`font-mono text-xs p-1 ${
-                    part.removed ? bgRemoved : ''
-                  }`}>
-                    {lines.map((line, lineIndex) => (
-                      <div key={lineIndex} className={`whitespace-pre ${
-                        part.removed ? textRemoved : textPrimary
-                      }`}>
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex-1 max-h-96 overflow-y-auto border-l border-[#d0d0d0]">
-              {diff.map((part, index) => {
-                if (part.removed) return null;
-                const lines = part.value.split('\n');
-                return (
-                  <div key={index} className={`font-mono text-xs p-1 ${
-                    part.added ? bgAdded : ''
-                  }`}>
-                    {lines.map((line, lineIndex) => (
-                      <div key={lineIndex} className={`whitespace-pre ${
-                        part.added ? textAdded : textPrimary
-                      }`}>
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Unified view
-    return (
-      <div className={`${darkMode ? "bg-[#2a2a2a]" : "bg-[#e8e8e8]"} shadow-[inset_4px_4px_8px_#c5c5c5,inset_-4px_-4px_8px_#ffffff] rounded-xl overflow-hidden`}>
-        <div className="p-3 border-b border-[#d0d0d0]">
-          <div className="flex justify-between items-center">
-            <div>
-              <h4 className={`font-bold ${textPrimary} text-sm`}>Comparing Version {oldVersion.version} → {newVersion.version}</h4>
-              <div className={`${textSecondary} text-xs`}>
-                {new Date(oldVersion.createdAt).toLocaleString()} → {new Date(newVersion.createdAt).toLocaleString()}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="max-h-96 overflow-y-auto">
-          {diff.map((part, index) => {
-            const lines = part.value.split('\n');
-            return (
-              <div key={index} className={`font-mono text-xs p-2 border-b border-[#f0f0f0] last:border-b-0 ${
-                part.added ? bgAdded : part.removed ? bgRemoved : ''
-              }`}>
-                {lines.map((line, lineIndex) => (
-                  <div key={lineIndex} className={`whitespace-pre ${
-                    part.added ? textAdded : part.removed ? textRemoved : textPrimary
-                  }`}>
-                    <span className={`inline-block w-8 ${
-                      part.added ? textAdded : part.removed ? textRemoved : textSecondary
-                    }`}>
-                      {part.added ? '+' : part.removed ? '-' : ' '}
-                    </span>
-                    {line}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  // Chat Components
-  const ChatMessage = ({ message, onApplySuggestion }) => {
-    const isUser = message.role === "user";
-    const timeStr = new Date(message.timestamp).toLocaleTimeString();
-    
-    return (
-      <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
-        <div className={`max-w-[80%] ${isUser ? "order-2" : "order-1"}`}>
-          <div className={`flex items-start gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-              isUser ? "bg-[#dc2626] text-white" : "bg-[#22c55e] text-white"
-            }`}>
-              {isUser ? "U" : "AI"}
-            </div>
-            <div className={`rounded-2xl p-3 ${
-              isUser 
-                ? "bg-[#dc2626] text-white" 
-                : `${neuInset} ${textPrimary}`
-            }`}>
-              <div className="text-sm whitespace-pre-wrap">{message.content}</div>
-              <div className={`text-xs mt-1 ${isUser ? "text-red-100" : textSecondary}`}>
-                {timeStr}
-              </div>
-            </div>
-          </div>
-          
-          {/* Suggestions */}
-          {message.suggestions && message.suggestions.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {message.suggestions.map((suggestion, index) => (
-                <div key={index} className={`${neuInset} rounded-xl p-3`}>
-                  <div className={`text-sm ${textSecondary} mb-2`}>
-                    💡 {suggestion.explanation}
-                  </div>
-                  {suggestion.code && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => onApplySuggestion(suggestion)}
-                        disabled={suggestion.applied}
-                        className={`${neuBtn} rounded-lg px-3 py-1 text-xs font-bold ${textPrimary} disabled:opacity-50`}
-                      >
-                        {suggestion.applied ? "✓ Applied" : "Apply Changes"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const ChatInput = ({ value, onChange, onSend, disabled }) => {
-    const handleKeyPress = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        onSend();
-      }
-    };
-    
-    return (
-      <div className={`${neuInset} rounded-2xl p-3 flex items-end gap-2`}>
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Ask AI to improve your app..."
-          disabled={disabled}
-          className={`flex-1 bg-transparent ${textPrimary} border-0 outline-none resize-none placeholder-[#999]`}
-          rows="1"
-          style={{ minHeight: '20px', maxHeight: '80px' }}
-        />
-        <button
-          onClick={onSend}
-          disabled={disabled || !value.trim()}
-          className={`${neuBtn} rounded-xl p-2 ${textPrimary} disabled:opacity-50`}
-        >
-          {disabled ? "⏳" : "📤"}
-        </button>
-      </div>
-    );
-  };
-
-  const ChatPanel = () => {
-    const messagesEndRef = useRef(null);
-    
-    const scrollToBottom = () => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-    
-    useEffect(() => {
-      scrollToBottom();
-    }, [chatHistory]);
-    
-    const handleSendMessage = () => {
-      if (chatInput.trim() && !isChatLoading) {
-        iterateOnApp(chatInput);
-      }
-    };
-    
-    const handleApplySuggestion = (suggestion) => {
-      applySuggestion(suggestion);
-    };
-    
-    if (!isChatVisible) {
-      return (
-        <button
-          onClick={() => setIsChatVisible(true)}
-          className={`${neuBtn} rounded-full w-12 h-12 flex items-center justify-center text-xl ${textPrimary} mb-4`}
-          title="Open AI Chat"
-        >
-          💬
-        </button>
-      );
-    }
-    
-    return (
-      <div className={`${neu} rounded-[24px] p-4 mb-6`}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className={`font-black ${textPrimary} flex items-center gap-2`}>
-            <span className="text-[#22c55e]">🤖</span>
-            AI Assistant
-          </h3>
-          <button
-            onClick={() => setIsChatVisible(false)}
-            className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-sm ${textPrimary}`}
-          >
-            ×
-          </button>
-        </div>
-        
-        {/* Chat Messages */}
-        <div className="h-64 overflow-y-auto mb-4 space-y-2">
-          {chatHistory.length === 0 ? (
-            <div className={`text-center ${textSecondary} py-8`}>
-              <div className="text-3xl mb-2">🤖</div>
-              <div className="text-sm">Start a conversation to improve your app!</div>
-            </div>
-          ) : (
-            chatHistory.map((message, index) => (
-              <ChatMessage
-                key={index}
-                message={message}
-                onApplySuggestion={handleApplySuggestion}
-              />
-            ))
-          )}
-          {isChatLoading && (
-            <div className="flex justify-start mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-[#22c55e] text-white flex items-center justify-center text-sm font-bold">
-                  AI
-                </div>
-                <div className={`${neuInset} rounded-2xl p-3 ${textPrimary}`}>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-[#22c55e] rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-[#22c55e] rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                    <div className="w-2 h-2 bg-[#22c55e] rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-        
-        {/* Chat Input */}
-        <ChatInput
-          value={chatInput}
-          onChange={setChatInput}
-          onSend={handleSendMessage}
-          disabled={isChatLoading}
-        />
-      </div>
-    );
-  };
+  }
 
   return (
     <>
-      <ToastContainer />
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div className={`min-h-screen ${bgMain} p-4 md:p-6 transition-colors duration-300`}>
       <div className="max-w-7xl mx-auto space-y-6">
         
@@ -1767,13 +1167,13 @@ RULES:
                   <div className={`${neuInset} rounded-full px-4 py-2`}>
                     <span className={`font-bold ${textPrimary} text-sm`}>👤 {user.username}</span>
                   </div>
-                  <button onClick={() => { puter.auth.signOut(); setUser(null); }}
+                  <button onClick={() => puterSDK.signOut()}
                     className={`${neuBtn} rounded-full px-4 py-2 font-bold ${textPrimary} text-sm`}>
                     Logout
                   </button>
                 </div>
               ) : (
-                <button onClick={signIn} disabled={!puter}
+                <button onClick={() => puterSDK.signIn()} disabled={!puterSDK.sdkReady}
                   className={`${neuBtnRed} rounded-full px-6 py-3 font-black disabled:opacity-50`}>
                   Sign In Free
                 </button>
@@ -1802,26 +1202,18 @@ RULES:
           )}
         </div>
 
+        {/* Error Test Component */}
+        <ErrorTestComponent />
+
         {/* Export/Import Modal */}
-        {showExportModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowExportModal(false)}>
-            <div className={`${neu} rounded-[24px] p-6 max-w-md w-full`} onClick={e => e.stopPropagation()}>
-              <h3 className={`font-black ${textPrimary} text-xl mb-4`}>📦 Export / Import</h3>
-              <div className="space-y-3">
-                <button onClick={exportApps} className={`w-full ${neuBtn} rounded-xl py-3 font-bold ${textPrimary}`}>
-                  📤 Export All Apps (JSON)
-                </button>
-                <button onClick={() => fileInputRef.current?.click()} className={`w-full ${neuBtn} rounded-xl py-3 font-bold ${textPrimary}`}>
-                  📥 Import Apps (JSON)
-                </button>
-                <input ref={fileInputRef} type="file" accept=".json" onChange={importApps} className="hidden" />
-              </div>
-              <button onClick={() => setShowExportModal(false)} className={`w-full ${neuBtnBlack} rounded-xl py-3 font-bold mt-4`}>
-                Close
-              </button>
-            </div>
-          </div>
-        )}
+        <ExportModal
+          showExportModal={showExportModal}
+          darkMode={darkMode}
+          onClose={() => setShowExportModal(false)}
+          onExportApps={exportApps}
+          onImportApps={importApps}
+          fileInputRef={fileInputRef}
+        />
 
         {/* Share Modal */}
         {showShareModal && (
@@ -2115,7 +1507,7 @@ RULES:
             <p className={`${textSecondary} mb-8 max-w-md mx-auto`}>
               Describe your app → AI builds it → Deploy as a real Puter app with live URL
             </p>
-            <button onClick={signIn} disabled={!puter}
+            <button onClick={() => puterSDK.signIn()} disabled={!puterSDK.sdkReady}
               className={`${neuBtnRed} rounded-full px-10 py-4 font-black text-lg disabled:opacity-50`}>
               Get Started Free
             </button>
@@ -2241,7 +1633,7 @@ RULES:
                     </div>
                   </div>
 
-                  <button onClick={() => buildAndDeploy()} disabled={generating || !prompt.trim()}
+                  <button onClick={() => handleBuildAndDeploy()} disabled={generating || !prompt.trim()}
                     className={`w-full ${neuBtnRed} rounded-2xl py-4 font-black text-lg disabled:opacity-50`}>
                     {generating ? "⏳ Building..." : "🚀 Build & Deploy"}
                   </button>
@@ -2276,7 +1668,7 @@ RULES:
                       </button>
                     </div>
                     {bulkMode && selectedApps.size > 0 && (
-                      <button onClick={bulkDelete} className={`${neuBtnRed} rounded-xl w-full py-2 text-sm font-bold text-white`}>
+                      <button onClick={handleBulkDelete} className={`${neuBtnRed} rounded-xl w-full py-2 text-sm font-bold text-white`}>
                         🗑️ Delete {selectedApps.size} Selected
                       </button>
                     )}
@@ -2367,20 +1759,20 @@ RULES:
                                 {!bulkMode && (
                                   <div className="flex flex-col gap-1">
                                     <button
-                                      onClick={e => toggleFavorite(app, e)}
+                                      onClick={e => handleToggleFavorite(app, e)}
                                       className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-sm ${textPrimary}`}
                                     >
                                       {app.favorite ? "⭐" : "☆"}
                                     </button>
                                     <button
-                                      onClick={e => duplicateApp(app, e)}
+                                      onClick={e => handleDuplicateApp(app, e)}
                                       className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-xs`}
                                       title="Duplicate"
                                     >
                                       📋
                                     </button>
                                     <button
-                                      onClick={e => launchApp(app, e)}
+                                      onClick={e => handleLaunchApp(app, e)}
                                       className={`${neuBtnBlack} rounded-full w-8 h-8 flex items-center justify-center text-xs`}
                                     >
                                       ▶
@@ -2475,13 +1867,13 @@ RULES:
                     💬
                   </button>
                   {selectedApp && (
-                    <button onClick={e => launchApp(selectedApp, e)}
+                    <button onClick={e => handleLaunchApp(selectedApp, e)}
                       className={`${neuBtnBlack} rounded-full px-4 py-2 font-bold text-xs`}>
                       Launch
                     </button>
                   )}
                   {selectedApp && editCode && (
-                    <button onClick={updateAndRedeploy} disabled={generating}
+                    <button onClick={handleUpdateAndRedeploy} disabled={generating}
                       className={`${neuBtnRed} rounded-full px-4 py-2 font-bold text-xs disabled:opacity-50`}>
                       Redeploy
                     </button>
@@ -2620,20 +2012,20 @@ RULES:
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={e => toggleFavorite(selectedApp, e)}
+                      <button onClick={e => handleToggleFavorite(selectedApp, e)}
                         className={`${neuBtn} rounded-full w-12 h-12 flex items-center justify-center text-xl ${textPrimary}`}>
                         {selectedApp.favorite ? "⭐" : "☆"}
                       </button>
-                      <button onClick={e => duplicateApp(selectedApp, e)}
+                      <button onClick={e => handleDuplicateApp(selectedApp, e)}
                         className={`${neuBtn} rounded-full w-12 h-12 flex items-center justify-center text-xl ${textPrimary}`}
                         title="Duplicate App">
                         📋
                       </button>
-                      <button onClick={e => launchApp(selectedApp, e)}
+                      <button onClick={e => handleLaunchApp(selectedApp, e)}
                         className={`${neuBtnRed} rounded-2xl px-6 py-3 font-black`}>
                         🚀 Launch
                       </button>
-                      <button onClick={e => deleteApp(selectedApp, e)}
+                      <button onClick={e => handleDeleteApp(selectedApp, e)}
                         className={`${neuBtn} rounded-full w-12 h-12 flex items-center justify-center text-xl text-[#dc2626]`}>
                         🗑️
                       </button>
@@ -2661,7 +2053,11 @@ RULES:
       // prettier-ignore-end
 
       const rootElement = document.getElementById("container");
-      ReactDOMClient.createRoot(rootElement).render(<App />);
+      ReactDOMClient.createRoot(rootElement).render(
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      );
     </script>
     <!--
     Agents see LLMs docs:

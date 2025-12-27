@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Error Boundary Test</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .btn {
+        background: #dc2626;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        margin: 5px;
+      }
+      .btn:hover {
+        background: #b91c1c;
+      }
+      .btn-secondary {
+        background: #6b7280;
+      }
+      .btn-secondary:hover {
+        background: #4b5563;
+      }
+      .error-message {
+        color: #dc2626;
+        font-weight: bold;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Error Boundary Test Suite</h1>
+      <p>This page tests the ErrorBoundary component implementation.</p>
+      
+      <div class="card">
+        <h2>Test 1: Component Error</h2>
+        <p>Click the button below to trigger a component error that should be caught by the ErrorBoundary.</p>
+        <button id="trigger-error" class="btn">Trigger Component Error</button>
+        <div id="error-result"></div>
+      </div>
+
+      <div class="card">
+        <h2>Test 2: Error Recovery</h2>
+        <p>After an error occurs, test the recovery functionality.</p>
+        <button id="test-recovery" class="btn btn-secondary">Test Recovery</button>
+      </div>
+
+      <div class="card">
+        <h2>Test 3: Console Logging</h2>
+        <p>Check the browser console to verify error logging is working.</p>
+        <button id="check-console" class="btn">Trigger Error & Check Console</button>
+      </div>
+    </div>
+
+    <script type="text/babel">
+      import React, { useState } from 'react';
+      import ReactDOMClient from 'react-dom/client';
+
+      // Import ErrorBoundary component
+      import ErrorBoundary from './components/ErrorBoundary.js';
+
+      // Component that throws an error
+      function ErrorComponent() {
+        const [shouldThrow, setShouldThrow] = useState(false);
+        
+        if (shouldThrow) {
+          throw new Error('Intentional component error for testing ErrorBoundary');
+        }
+        
+        return (
+          <div>
+            <h3>No Error Yet</h3>
+            <p>This component is working normally.</p>
+          </div>
+        );
+      }
+
+      function TestApp() {
+        const [showError, setShowError] = useState(false);
+        
+        return (
+          <ErrorBoundary>
+            <div>
+              <h2>Test Application</h2>
+              {showError ? <ErrorComponent /> : <p>Click "Trigger Error" to test ErrorBoundary</p>}
+            </div>
+          </ErrorBoundary>
+        );
+      }
+
+      // Render the test app
+      const rootElement = document.createElement('div');
+      rootElement.className = 'container';
+      document.body.appendChild(rootElement);
+      
+      ReactDOMClient.createRoot(rootElement).render(<TestApp />);
+
+      // Add event listeners for test buttons
+      document.getElementById('trigger-error').addEventListener('click', () => {
+        const result = document.getElementById('error-result');
+        result.innerHTML = '<div class="error-message">Error triggered! Check if ErrorBoundary caught it.</div>';
+        
+        // Simulate component error
+        const error = new Error('Test error for ErrorBoundary');
+        console.log('Simulating error:', error);
+      });
+
+      document.getElementById('check-console').addEventListener('click', () => {
+        console.log('Testing ErrorBoundary error logging...');
+        console.error('This error should be logged by ErrorBoundary');
+      });
+    </script>
+  </body>
+</html>

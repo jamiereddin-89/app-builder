@@ -1,0 +1,500 @@
+<examples>
+  <overview>
+    Complete workflow examples demonstrating spec-driven development process from initial idea 
+    through requirements, design, and implementation task creation.
+  </overview>
+
+  <workflow_examples>
+    <example name="user_authentication_feature">
+      <description>Complete example of building a user authentication feature using spec-driven development</description>
+      
+      <user_input>
+        "I want to add user authentication to my web app so users can register, login, and manage their accounts securely."
+      </user_input>
+
+      <generated_feature_name>user-authentication</generated_feature_name>
+
+      <phase name="requirements">
+        <document_created>.kiro/specs/user-authentication/requirements.md</document_created>
+        <initial_content><![CDATA[
+# Requirements Document
+
+## Introduction
+
+This specification defines the user authentication feature for the web application, enabling users to register accounts, login securely, and manage their profile information. This feature addresses the need for secure user access control and personalized user experiences.
+
+## Requirements
+
+### Requirement 1: User Registration
+
+**User Story:** As a new visitor, I want to create an account, so that I can access personalized features and save my preferences.
+
+#### Acceptance Criteria
+
+1. WHEN user clicks "Sign Up" button THEN system SHALL display registration form with email, password, and confirm password fields
+2. IF user enters invalid email format THEN system SHALL display email format error message
+3. IF password does not meet complexity requirements THEN system SHALL display password requirements error
+4. IF passwords do not match THEN system SHALL display password mismatch error
+5. WHEN user submits valid registration form THEN system SHALL create user account and send verification email
+6. WHEN email verification link is clicked THEN system SHALL verify email and activate user account
+
+### Requirement 2: User Login
+
+**User Story:** As a registered user, I want to login with my credentials, so that I can access my account and personalized content.
+
+#### Acceptance Criteria
+
+1. WHEN user enters valid email and password THEN system SHALL authenticate user and create session
+2. IF user enters invalid credentials THEN system SHALL display authentication error message
+3. IF user account is not verified THEN system SHALL display verification required message
+4. WHEN user clicks "Remember Me" THEN system SHALL extend session duration to 30 days
+5. WHEN user clicks "Forgot Password" THEN system SHALL send password reset email
+
+### Requirement 3: Profile Management
+
+**User Story:** As a logged-in user, I want to manage my profile information, so that I can keep my account details up to date.
+
+#### Acceptance Criteria
+
+1. WHEN user accesses profile page THEN system SHALL display current profile information
+2. WHEN user updates profile information THEN system SHALL validate and save changes
+3. WHEN user changes password THEN system SHALL require current password verification
+4. WHEN user deletes account THEN system SHALL confirm deletion and remove all user data
+5. IF user is inactive for 90 days THEN system SHALL send re-engagement email
+        ]]></initial_content>
+
+        <user_feedback>
+          "Looks good, but we should also handle social media login options like Google and GitHub"
+        </user_feedback>
+
+        <revisions_made>
+          - Added Requirement 4: Social Media Authentication with Google and GitHub OAuth
+          - Updated Requirement 1 to include social registration options
+          - Added acceptance criteria for OAuth flows
+        </revisions_made>
+
+        <final_approval>Yes, the requirements look good. We can move on to the design.</final_approval>
+      </phase>
+
+      <phase name="design">
+        <document_created>.kiro/specs/user-authentication/design.md</document_created>
+        <research_conducted>
+          - Analyzed OAuth 2.0 vs JWT vs Session-based authentication
+          - Reviewed OWASP authentication guidelines
+          - Compared social login implementation approaches
+          - Researched password security best practices
+        </research_conducted>
+
+        <initial_content><![CDATA[
+# Design Document
+
+## Overview
+
+The user authentication system uses OAuth 2.0 for social login and JWT tokens for session management, providing secure and scalable authentication. The design prioritizes security, user experience, and integration flexibility.
+
+## Architecture
+
+The authentication system follows a layered architecture:
+
+```
+[Frontend] → [Auth Service] → [Database] + [OAuth Providers]
+    ↓            ↓              ↓             ↓
+[React UI] → [JWT Handler] → [User Data] → [Google/GitHub]
+```
+
+### Key Components:
+- **Frontend Auth UI**: React components for login, registration, and profile management
+- **Auth Service**: Backend API handling authentication logic
+- **JWT Manager**: Token generation, validation, and refresh
+- **OAuth Integrations**: Social login with Google and GitHub
+- **User Database**: Secure user data storage with password hashing
+
+## Components and Interfaces
+
+### AuthService Component
+
+**Purpose:** Central authentication logic and user management
+
+**Interface:**
+- Input: User credentials, OAuth tokens, profile data
+- Output: JWT tokens, user profile data, auth status
+- Dependencies: UserDatabase, OAuthProviders, JWTManager
+
+**Responsibilities:**
+- User registration and email verification
+- Credential validation and authentication
+- JWT token generation and validation
+- Password reset and account management
+- Social login orchestration
+
+### OAuthProvider Component
+
+**Purpose:** Handle social media authentication
+
+**Interface:**
+- Input: OAuth authorization codes, provider configuration
+- Output: Provider user data, authentication tokens
+- Dependencies: Google OAuth API, GitHub OAuth API
+
+**Responsibilities:**
+- OAuth flow initiation and callback handling
+- Provider user data extraction and mapping
+- Account linking for existing users
+- Provider-specific error handling
+
+## Data Models
+
+### User Model
+
+```typescript
+interface User {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  passwordHash?: string; // Only for email/password users
+  profile: {
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+  };
+  auth: {
+    providers: OAuthProvider[];
+    lastLogin: Date;
+    sessionExpiry: Date;
+  };
+  preferences: {
+    theme: 'light' | 'dark';
+    language: string;
+    notifications: boolean;
+  };
+}
+```
+
+### Session Model
+
+```typescript
+interface Session {
+  id: string;
+  userId: string;
+  token: string;
+  refreshToken: string;
+  expiresAt: Date;
+  createdAt: Date;
+  deviceInfo: {
+    userAgent: string;
+    ipAddress: string;
+  };
+}
+```
+
+## Error Handling
+
+### Error Scenarios
+
+1. **Invalid Credentials:**
+   - **Trigger:** Wrong email/password combination
+   - **Response:** Return generic "Invalid credentials" message
+   - **User Impact:** User sees error but doesn't know which field is wrong
+
+2. **OAuth Provider Error:**
+   - **Trigger:** Google/GitHub OAuth failure
+   - **Response:** Log error, show fallback login option
+   - **User Impact:** User can try email/password login instead
+
+3. **Token Expiration:**
+   - **Trigger:** JWT token expires during user session
+   - **Response:** Automatically refresh token or redirect to login
+   - **User Impact:** Seamless session continuation or re-authentication
+
+## Testing Strategy
+
+### Unit Tests
+- AuthService methods (register, login, validate)
+- JWT token generation and validation
+- Password hashing and verification
+- OAuth provider integration
+
+### Integration Tests
+- End-to-end registration flow
+- Login/logout cycle with session management
+- Social login integration with providers
+- Password reset workflow
+
+### Test Data
+- Sample user accounts with different states
+- Mock OAuth provider responses
+- Valid and invalid JWT tokens for testing
+        ]]></initial_content>
+
+        <user_feedback>
+          "The design looks comprehensive. I think we should also add rate limiting for login attempts to prevent brute force attacks."
+        </user_feedback>
+
+        <revisions_made>
+          - Added RateLimiting component to AuthService
+          - Updated error handling for rate limit exceeded scenarios
+          - Added security considerations section
+          - Updated testing strategy to include rate limiting tests
+        </revisions_made>
+
+        <final_approval>Does the design look good? If so, we can move on to the implementation plan.</final_approval>
+      </phase>
+
+      <phase name="tasks">
+        <document_created>.kiro/specs/user-authentication/tasks.md</document_created>
+        <initial_content><![CDATA[
+# Implementation Plan
+
+- [ ] 1. Set up project structure and authentication infrastructure
+  - Create directory structure for auth components, services, and models
+  - Set up database schema for users and sessions
+  - Configure environment variables for OAuth providers
+  - _Requirements: 1.1, 2.1, 3.1_
+
+- [ ] 2. Implement core authentication service
+- [ ] 2.1 Create User model with validation and password hashing
+  - Write User class with email validation and password complexity checks
+  - Implement bcrypt password hashing and verification
+  - Create unit tests for User model validation
+  - _Requirements: 1.2, 1.3, 2.1_
+
+- [ ] 2.2 Implement Session management with JWT tokens
+  - Create JWT token generation and validation functions
+  - Implement session storage and retrieval from database
+  - Add automatic token refresh logic
+  - _Requirements: 2.1, 2.4_
+
+- [ ] 2.3 Implement rate limiting for authentication attempts
+  - Create rate limiting service with Redis/memory storage
+  - Add rate limit checks to login and registration endpoints
+  - Implement exponential backoff for repeated failures
+  - _Requirements: Security best practices_
+
+- [ ] 3. Create user registration and login endpoints
+- [ ] 3.1 Implement user registration API endpoint
+  - Create POST /api/auth/register endpoint with validation
+  - Add email verification workflow with token generation
+  - Implement password strength validation and error handling
+  - _Requirements: 1.1, 1.2, 1.3, 1.5_
+
+- [ ] 3.2 Implement user login API endpoint
+  - Create POST /api/auth/login endpoint with credential validation
+  - Add "Remember Me" functionality with extended session duration
+  - Implement comprehensive error handling for authentication failures
+  - _Requirements: 2.1, 2.2, 2.4_
+
+- [ ] 3.3 Implement password reset functionality
+  - Create POST /api/auth/forgot-password endpoint
+  - Add secure token generation and email sending
+  - Implement password reset confirmation endpoint
+  - _Requirements: 2.5_
+
+- [ ] 4. Implement OAuth social authentication
+- [ ] 4.1 Set up Google OAuth integration
+  - Configure Google OAuth 2.0 client credentials
+  - Implement OAuth flow initiation and callback handling
+  - Add user data extraction and mapping from Google profile
+  - _Requirements: 4.1, 4.2_
+
+- [ ] 4.2 Set up GitHub OAuth integration
+  - Configure GitHub OAuth application credentials
+  - Implement GitHub OAuth flow with user data extraction
+  - Add account linking for existing email users
+  - _Requirements: 4.3, 4.4_
+
+- [ ] 5. Build frontend authentication UI components
+- [ ] 5.1 Create login and registration React components
+  - Build LoginForm and RegistrationForm components with validation
+  - Add social login buttons and proper error state handling
+  - Implement responsive design and accessibility features
+  - _Requirements: 1.1, 2.1, 4.1_
+
+- [ ] 5.2 Create profile management interface
+  - Build UserProfile component for viewing and editing user data
+  - Add password change functionality with current password verification
+  - Implement account deletion with confirmation dialog
+  - _Requirements: 3.1, 3.2, 3.3, 3.4_
+
+- [ ] 6. Implement authentication state management
+  - Set up authentication context and hooks for React components
+  - Add automatic token refresh and session management
+  - Implement protected route handling and authentication redirects
+  - _Requirements: 2.1, 2.4_
+
+- [ ] 7. Add comprehensive testing and security measures
+- [ ] 7.1 Create unit tests for all authentication components
+  - Write tests for User model, AuthService, and JWT handling
+  - Add tests for OAuth integrations and error scenarios
+  - Implement test coverage for all authentication flows
+  - _Requirements: All requirements_
+
+- [ ] 7.2 Create integration tests for end-to-end authentication flows
+  - Test complete registration and email verification workflow
+  - Test login/logout cycle with session management
+  - Test social login flows and account linking scenarios
+  - _Requirements: 1.6, 2.1, 4.6_
+
+- [ ] 7.3 Implement security testing and hardening
+  - Add tests for rate limiting and brute force protection
+  - Implement security headers and CSRF protection
+  - Add comprehensive input validation and sanitization
+  - _Requirements: Security requirements_
+        ]]></initial_content>
+
+        <final_approval>Do the tasks look good?</final_approval>
+      </phase>
+
+      <workflow_completion>
+        <message>Spec-driven development workflow complete! I've created comprehensive requirements, design, and implementation plan for your user authentication feature. The specification includes user registration, login, social authentication with Google and GitHub, profile management, and security measures like rate limiting.
+
+        You can now begin executing the tasks by opening the tasks.md file and clicking "Start task" next to task items. Each task is focused on specific coding activities and references the requirements it addresses.</message>
+      </workflow_completion>
+    </example>
+
+    <example name="simple_feature_spec">
+      <description>Example of a simpler feature specification process</description>
+      
+      <user_input>
+        "I need a search functionality for my e-commerce site"
+      </user_input>
+
+      <generated_feature_name>product-search</generated_feature_name>
+
+      <workflow_summary>
+        <phase_1>Created requirements for product search with filters, autocomplete, and results display</phase_1>
+        <phase_2>Designed search architecture with Elasticsearch integration and caching</phase_2>
+        <phase_3>Generated 12 focused coding tasks covering search API, UI components, and testing</phase_3>
+        <completion_time>Completed in 3 iterative approval cycles</completion_time>
+      </workflow_summary>
+
+      <key_learnings>
+        <learning>Complex features may require more research and iteration</learning>
+        <learning>Breaking down into smaller tasks makes implementation more manageable</learning>
+        <learning>User feedback is crucial for refining requirements and design</learning>
+      </key_learnings>
+    </example>
+  </workflow_examples>
+
+  <common_scenarios>
+    <scenario name="user_rejects_initial_requirements">
+      <situation>User provides feedback that requirements are too complex or missing key aspects</situation>
+      <response_approach>
+        <step>Use ask_followup_question to gather specific feedback about what needs changes</step>
+        <step>Make targeted revisions to requirements document</step>
+        <step>Ask for approval again with spec-requirements-review</step>
+        <step>Continue until explicit approval received</step>
+      </response_approach>
+      <example_question>
+        "What specific aspects of the requirements need to be adjusted? For example:
+        - Are there features that should be added or removed?
+        - Are the user stories missing important user perspectives?
+        - Do the acceptance criteria need to be more specific or comprehensive?"
+      </example_question>
+    </scenario>
+
+    <scenario name="design_becomes_too_complex">
+      <situation>Design document becomes unwieldy or overly complex</situation>
+      <response_approach>
+        <step>Suggest breaking design into smaller, manageable components</step>
+        <step>Focus on core functionality first, defer advanced features</step>
+        <step>Consider phased implementation approach</step>
+        <step>Return to requirements for prioritization if needed</step>
+      </response_approach>
+      <example_suggestion>
+        "The design covers a lot of functionality. Would you prefer to:
+        - Focus on core search functionality first, then add advanced filters later?
+        - Break this into multiple smaller features that can be implemented incrementally?
+        - Simplify the initial implementation and enhance it over time?"
+      </example_suggestion>
+    </scenario>
+
+    <scenario name="tasks_include_non_coding_activities">
+      <situation>Implementation tasks include activities that aren't coding-focused</situation>
+      <response_approach>
+        <step>Identify non-coding activities in task list</step>
+        <step>Rewrite tasks to focus exclusively on coding activities</step>
+        <step>Ensure each task is actionable by a coding agent</step>
+        <step>Reference specific requirements in task details</step>
+      </response_approach>
+      <example_correction>
+        <bad_task>"Research best practices for user authentication"</bad_task>
+        <good_task>"Implement User model with validation methods and unit tests"</good_task>
+      </example_correction>
+    </scenario>
+
+    <scenario name="user_wants_to_skip_phases">
+      <situation>User asks to skip requirements or design phase and go straight to tasks</situation>
+      <response_approach>
+        <step>Explain importance of systematic approach for complex features</step>
+        <step>Offer to create simplified versions of skipped phases</step>
+        <step>Proceed only if user insists and provides sufficient context</step>
+        <step>Document assumptions made due to skipped phases</step>
+      </response_approach>
+      <example_response>
+        "I understand you want to move quickly, but the requirements and design phases help ensure we build exactly what you need. Would you like me to create a simplified version of the requirements that covers the core functionality, then we can move to design and tasks?"
+      </example_response>
+    </scenario>
+  </common_scenarios>
+
+  <quality_examples>
+    <example name="good_ears_requirement">
+      <description>Example of well-written EARS format requirement</description>
+      <good_example>
+        WHEN user clicks "Add to Cart" button THEN system SHALL validate product availability and update cart count
+        IF product is out of stock THEN system SHALL display "Out of Stock" message and disable add button
+        WHEN user adds product to cart AND user is logged in THEN system SHALL save cart state to user account
+      </good_example>
+      <why_good>
+        - Uses proper EARS format (WHEN/THEN/IF/SHALL)
+        - Includes both success and error scenarios
+        - Specifies clear system responses
+        - Considers user state conditions
+      </why_good>
+    </example>
+
+    <example name="good_task_description">
+      <description>Example of well-written implementation task</description>
+      <good_example>
+        2.1 Create Product model with validation and inventory tracking
+        - Write Product class with SKU, name, price, and stock validation
+        - Implement inventory update methods with transaction safety
+        - Create unit tests for product validation and stock operations
+        - _Requirements: 1.1, 1.2, 2.3_
+      </good_example>
+      <why_good>
+        - Starts with action verb (Create)
+        - Specifies exactly what to implement
+        - Includes testing requirements
+        - References specific requirements
+      </why_good>
+    </example>
+
+    <example name="comprehensive_design_section">
+      <description>Example of well-structured design document section</description>
+      <good_example>
+        ## Components and Interfaces
+
+        ### SearchService Component
+
+        **Purpose:** Handle product search queries with filtering and ranking
+
+        **Interface:**
+        - Input: SearchQuery { term: string, filters: Filter[], sort: SortOption }
+        - Output: SearchResult { products: Product[], total: number, facets: Facet[] }
+        - Dependencies: ProductDatabase, SearchIndex, CacheService
+
+        **Responsibilities:**
+        - Parse and validate search queries
+        - Apply filters and sorting to search results
+        - Cache frequently searched queries
+        - Generate search result facets for UI
+      </good_example>
+      <why_good>
+        - Clear component purpose and boundaries
+        - Well-defined input/output interfaces
+        - Lists dependencies and responsibilities
+        - Follows consistent documentation format
+      </why_good>
+    </example>
+  </quality_examples>
+</examples>

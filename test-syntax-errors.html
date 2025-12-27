@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Syntax Error Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .pass { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .fail { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        #console-output { 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            padding: 10px; 
+            margin: 10px 0; 
+            max-height: 300px; 
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>JavaScript Syntax Error Test</h1>
+    <div id="results"></div>
+    <div id="console-output"></div>
+    
+    <script>
+        // Capture console logs
+        const consoleOutput = [];
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        function captureConsole(type, args) {
+            const message = `[${new Date().toISOString()}] ${type.toUpperCase()}: ${Array.from(args).join(' ')}`;
+            consoleOutput.push(message);
+            updateConsoleOutput();
+        }
+        
+        console.log = function(...args) {
+            captureConsole('log', args);
+            originalLog.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            captureConsole('error', args);
+            originalError.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+            captureConsole('warn', args);
+            originalWarn.apply(console, args);
+        };
+        
+        function updateConsoleOutput() {
+            const output = document.getElementById('console-output');
+            output.innerHTML = consoleOutput.join('<br>');
+        }
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+        
+        function testFile(fileName, callback) {
+            const script = document.createElement('script');
+            script.type = 'text/babel';
+            script.src = fileName;
+            script.onload = () => callback(null);
+            script.onerror = (error) => callback(error);
+            document.head.appendChild(script);
+        }
+        
+        // Test loading individual components
+        function testComponents() {
+            addResult('Testing individual component files...', 'info');
+            
+            // Test ChatPanel.js
+            fetch('components/ChatPanel.js')
+                .then(response => {
+                    if (response.ok) {
+                        return response.text();
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                })
+                .then(code => {
+                    try {
+                        // Try to parse the JavaScript
+                        new Function(code);
+                        addResult('✅ ChatPanel.js - No syntax errors detected', 'pass');
+                    } catch (error) {
+                        addResult(`❌ ChatPanel.js - Syntax error: ${error.message}`, 'fail');
+                    }
+                })
+                .catch(error => {
+                    addResult(`❌ ChatPanel.js - Failed to load: ${error.message}`, 'fail');
+                });
+                
+            // Test Toast.js
+            fetch('components/Toast.js')
+                .then(response => {
+                    if (response.ok) {
+                        return response.text();
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                })
+                .then(code => {
+                    try {
+                        // Try to parse the JavaScript
+                        new Function(code);
+                        addResult('✅ Toast.js - No syntax errors detected', 'pass');
+                    } catch (error) {
+                        addResult(`❌ Toast.js - Syntax error: ${error.message}`, 'fail');
+                    }
+                })
+                .catch(error => {
+                    addResult(`❌ Toast.js - Failed to load: ${error.message}`, 'fail');
+                });
+                
+            // Test hooks
+            fetch('hooks/usePuterSDK.js')
+                .then(response => {
+                    if (response.ok) {
+                        return response.text();
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                })
+                .then(code => {
+                    try {
+                        new Function(code);
+                        addResult('✅ usePuterSDK.js - No syntax errors detected', 'pass');
+                    } catch (error) {
+                        addResult(`❌ usePuterSDK.js - Syntax error: ${error.message}`, 'fail');
+                    }
+                })
+                .catch(error => {
+                    addResult(`❌ usePuterSDK.js - Failed to load: ${error.message}`, 'fail');
+                });
+                
+            fetch('hooks/useModels.js')
+                .then(response => {
+                    if (response.ok) {
+                        return response.text();
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                })
+                .then(code => {
+                    try {
+                        new Function(code);
+                        addResult('✅ useModels.js - No syntax errors detected', 'pass');
+                    } catch (error) {
+                        addResult(`❌ useModels.js - Syntax error: ${error.message}`, 'fail');
+                    }
+                })
+                .catch(error => {
+                    addResult(`❌ useModels.js - Failed to load: ${error.message}`, 'fail');
+                });
+        }
+        
+        // Test the main application
+        function testMainApplication() {
+            addResult('Testing main application (index.html)...', 'info');
+            
+            // Create a hidden iframe to test the main application
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = 'index.html';
+            
+            iframe.onload = () => {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const scripts = iframeDoc.querySelectorAll('script');
+                    
+                    let hasErrors = false;
+                    scripts.forEach((script, index) => {
+                        if (script.textContent) {
+                            try {
+                                new Function(script.textContent);
+                            } catch (error) {
+                                addResult(`❌ Main app script ${index + 1} - Syntax error: ${error.message}`, 'fail');
+                                hasErrors = true;
+                            }
+                        }
+                    });
+                    
+                    if (!hasErrors) {
+                        addResult('✅ Main application - No syntax errors detected in inline scripts', 'pass');
+                    }
+                } catch (error) {
+                    addResult(`❌ Main application - Error analyzing scripts: ${error.message}`, 'fail');
+                }
+                
+                document.body.removeChild(iframe);
+            };
+            
+            iframe.onerror = () => {
+                addResult('❌ Main application - Failed to load', 'fail');
+                document.body.removeChild(iframe);
+            };
+            
+            document.body.appendChild(iframe);
+        }
+        
+        // Run tests after page loads
+        window.addEventListener('load', () => {
+            addResult('Starting syntax error tests...', 'info');
+            testComponents();
+            
+            // Wait a bit for component tests to complete, then test main app
+            setTimeout(testMainApplication, 2000);
+            
+            // Final summary after all tests
+            setTimeout(() => {
+                addResult('Test completed. Check console output above for detailed logs.', 'info');
+            }, 5000);
+        });
+        
+        // Global error handler
+        window.addEventListener('error', (event) => {
+            addResult(`❌ Global error: ${event.message} at ${event.filename}:${event.lineno}`, 'fail');
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            addResult(`❌ Unhandled promise rejection: ${event.reason}`, 'fail');
+        });
+    </script>
+</body>
+</html>

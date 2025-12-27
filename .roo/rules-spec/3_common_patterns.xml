@@ -1,0 +1,386 @@
+<common_patterns>
+  <overview>
+    Reusable templates and patterns for creating spec documents, requirements, designs, and task lists
+    following spec-driven development methodology.
+  </overview>
+
+  <requirements_patterns>
+    <pattern name="requirements_template">
+      <description>Standard template for requirements documents</description>
+      <template><![CDATA[
+# Requirements Document
+
+## Introduction
+
+[Provide a clear overview of the feature, its purpose, and value proposition. Explain what problem this feature solves and why it's important.]
+
+## Requirements
+
+### Requirement 1: [Requirement Name]
+
+**User Story:** As a [user role], I want [feature/functionality], so that [benefit/value]
+
+#### Acceptance Criteria
+
+1. WHEN [event/trigger] THEN [system] SHALL [expected behavior]
+2. IF [condition] THEN [system] SHALL [expected behavior]
+3. WHEN [event] AND [additional condition] THEN [system] SHALL [expected behavior]
+
+[Additional acceptance criteria...]
+
+### Requirement 2: [Requirement Name]
+
+**User Story:** As a [user role], I want [feature/functionality], so that [benefit/value]
+
+#### Acceptance Criteria
+
+1. WHEN [event/trigger] THEN [system] SHALL [expected behavior]
+2. IF [condition] THEN [system] SHALL [expected behavior]
+
+[Additional requirements follow the same pattern...]
+      ]]></template>
+    </pattern>
+
+    <pattern name="ears_formats">
+      <description>Common EARS format patterns for different scenarios</description>
+      <formats>
+        <format type="simple_trigger">
+          <pattern>WHEN [event] THEN [system] SHALL [response]</pattern>
+          <example>WHEN user clicks submit button THEN system SHALL validate all form fields</example>
+        </format>
+        
+        <format type="conditional">
+          <pattern>IF [condition] THEN [system] SHALL [response]</pattern>
+          <example>IF user input exceeds character limit THEN system SHALL truncate input</example>
+        </format>
+        
+        <format type="compound">
+          <pattern>WHEN [event] AND [condition] THEN [system] SHALL [response]</pattern>
+          <example>WHEN user submits form AND email is invalid THEN system SHALL display error message</example>
+        </format>
+        
+        <format type="exception">
+          <pattern>UNLESS [exception condition] WHEN [event] THEN [system] SHALL [response]</pattern>
+          <example>UNLESS user has admin privileges WHEN user requests data THEN system SHALL return filtered data</example>
+        </format>
+      </formats>
+    </pattern>
+
+    <pattern name="user_story_templates">
+      <description>Templates for writing effective user stories</description>
+      <templates>
+        <template type="basic">
+          <format>As a [user role], I want [feature], so that [benefit]</format>
+          <examples>
+            <example>As a website visitor, I want to search for products, so that I can find items I need quickly</example>
+            <example>As a registered user, I want to save my preferences, so that I have a personalized experience</example>
+            <example>As an admin, I want to manage user accounts, so that I can maintain the system</example>
+          </examples>
+        </template>
+        
+        <template type="persona_based">
+          <format>As a [persona with specific needs], I want [functionality], so that I can [achieve goal]</format>
+          <examples>
+            <example>As a busy professional with limited time, I want one-click checkout, so that I can complete purchases quickly</example>
+            <example>As a visually impaired user, I want screen reader compatibility, so that I can navigate the interface</example>
+          </examples>
+        </template>
+      </templates>
+    </pattern>
+  </requirements_patterns>
+
+  <design_patterns>
+    <pattern name="design_document_template">
+      <description>Standard template for design documents</description>
+      <template><![CDATA[
+# Design Document
+
+## Overview
+
+[Brief description of the feature and its design approach. Summarize key design decisions and their rationale.]
+
+## Architecture
+
+[Describe the overall system architecture, including:
+- High-level components and their relationships
+- Data flow between components
+- External dependencies
+- Technology choices and rationale]
+
+### Component Diagram
+
+[Include Mermaid diagrams or visual representations of component relationships]
+
+## Components and Interfaces
+
+### Component 1: [Component Name]
+
+**Purpose:** [What this component does]
+
+**Interface:**
+- Input: [What data/parameters it receives]
+- Output: [What data/parameters it returns]
+- Dependencies: [What other components it relies on]
+
+**Responsibilities:**
+- [List of key responsibilities]
+
+[Repeat for each component...]
+
+## Data Models
+
+### Model 1: [Model Name]
+
+```typescript
+interface [ModelName] {
+  // Define the data structure
+  id: string;
+  // ... other properties
+}
+```
+
+[Include data relationships and constraints]
+
+## Error Handling
+
+### Error Scenarios
+
+1. **[Error Type]:** [Description]
+   - **Trigger:** [What causes this error]
+   - **Response:** [How system should handle it]
+   - **User Impact:** [What user sees/experiences]
+
+[Additional error scenarios...]
+
+## Testing Strategy
+
+### Unit Tests
+- [List components that need unit tests]
+- [Key test scenarios to cover]
+
+### Integration Tests
+- [Cross-component interaction tests]
+- [End-to-end workflow tests]
+
+### Test Data
+- [Sample data needed for testing]
+- [Test fixtures and mocks required]
+      ]]></template>
+    </pattern>
+
+    <pattern name="architecture_patterns">
+      <description>Common architectural patterns for different feature types</description>
+      <patterns>
+        <pattern name="api_feature">
+          <description>Architecture for API-based features</description>
+          <components>
+            <component>API Client Layer</component>
+            <component>Business Logic Layer</component>
+            <component>Data Access Layer</component>
+            <component>External API Integration</component>
+          </components>
+          <data_flow>Client → API Client → Business Logic → Data Access → External API</data_flow>
+        </pattern>
+
+        <pattern name="ui_feature">
+          <description>Architecture for UI-based features</description>
+          <components>
+            <component>Presentation Layer (Components)</component>
+            <component>State Management</component>
+            <component>Service Layer</component>
+            <component>API Integration</component>
+          </components>
+          <data_flow>UI Components → State Management → Service Layer → API</data_flow>
+        </pattern>
+
+        <pattern name="data_processing">
+          <description>Architecture for data processing features</description>
+          <components>
+            <component>Data Input/Validation</component>
+            <component>Processing Engine</component>
+            <component>Data Storage</component>
+            <component>Output Generation</component>
+          </components>
+          <data_flow>Input → Validation → Processing → Storage → Output</data_flow>
+        </pattern>
+      </patterns>
+    </pattern>
+
+    <pattern name="research_integration">
+      <description>How to incorporate research findings into design</description>
+      <guidelines>
+        <guideline>Summarize key research findings in dedicated section</guideline>
+        <guideline>Explain how research informed design decisions</guideline>
+        <guideline>Include source citations and links</guideline>
+        <guideline>Compare multiple approaches and explain selection</guideline>
+      </guidelines>
+      <example><![CDATA[
+## Research Findings
+
+### Authentication Methods Analysis
+
+**Research Sources:**
+- OWASP Authentication Guidelines (2024)
+- JWT vs Session-based Authentication Comparison
+- Industry Best Practices Report
+
+**Key Findings:**
+- JWT tokens provide better scalability for distributed systems
+- Session-based authentication offers simpler implementation for small applications
+- OAuth 2.0 with refresh tokens provides best security for user-facing applications
+
+**Design Decision:**
+Based on research, implementing OAuth 2.0 with refresh tokens provides the best balance of security, scalability, and user experience for our use case.
+
+**Implementation Approach:**
+- Use OAuth 2.0 Authorization Code flow
+- Implement refresh token rotation
+- Store tokens securely with httpOnly cookies
+      ]]></example>
+    </pattern>
+  </design_patterns>
+
+  <task_patterns>
+    <pattern name="task_list_template">
+      <description>Standard template for implementation task lists</description>
+      <template><![CDATA[
+# Implementation Plan
+
+- [ ] 1. [Epic/Large Task Area]
+  - [Subtask description with specific implementation details]
+  - [Additional implementation details]
+  - _Requirements: [Specific requirement references]_
+
+- [ ] 2. [Next Task Area]
+- [ ] 2.1 [Specific coding task]
+  - [Implementation details and what to create/modify]
+  - _Requirements: [Requirement references]_
+
+[Continue with similar structure...]
+      ]]></template>
+    </pattern>
+
+    <pattern name="coding_task_patterns">
+      <description>Common patterns for writing coding-focused tasks</description>
+      <patterns>
+        <pattern name="model_implementation">
+          <template>[Task number]. [Create/Implement] [Model Name] model with validation
+  - Write [Model Name] class with properties and validation methods
+  - Create unit tests for [Model Name] validation
+  - Implement error handling for invalid data
+  - _Requirements: [specific requirement numbers]_</template>
+          <example>2.1 Create User model with validation
+  - Write User class with email, password, and profile validation
+  - Create unit tests for User model validation
+  - Implement error handling for invalid user data
+  - _Requirements: 1.2, 2.1_</example>
+        </pattern>
+
+        <pattern name="api_endpoint">
+          <template>[Task number]. [Implement/Create] [Endpoint Name] API endpoint
+  - Create [HTTP method] endpoint at [URL path]
+  - Add request validation and error handling
+  - Write integration tests for endpoint
+  - _Requirements: [specific requirement numbers]_</template>
+          <example>3.1 Implement User Registration API endpoint
+  - Create POST endpoint at /api/users/register
+  - Add request validation and error handling
+  - Write integration tests for user registration
+  - _Requirements: 1.3, 2.2_</example>
+        </pattern>
+
+        <pattern name="ui_component">
+          <template>[Task number]. [Create/Implement] [Component Name] UI component
+  - Build [Component Name] React component with props interface
+  - Add styling and responsive design
+  - Create unit tests for component behavior
+  - _Requirements: [specific requirement numbers]_</template>
+          <example>4.1 Create User Profile Component UI component
+  - Build UserProfile React component with props interface
+  - Add styling and responsive design
+  - Create unit tests for component behavior
+  - _Requirements: 1.1, 3.1_</example>
+        </pattern>
+
+        <pattern name="data_integration">
+          <template>[Task number]. [Implement/Create] [Integration Type] integration
+  - Set up [service/tool] connection and authentication
+  - Implement data mapping and transformation
+  - Add error handling and retry logic
+  - _Requirements: [specific requirement numbers]_</template>
+          <example>5.1 Implement Database integration
+  - Set up database connection and ORM configuration
+  - Implement data model mapping and queries
+  - Add error handling and connection pooling
+  - _Requirements: 2.1, 4.2_</example>
+        </pattern>
+      </patterns>
+    </pattern>
+
+    <pattern name="requirement_references">
+      <description>How to reference requirements in task descriptions</description>
+      <guidelines>
+        <guideline>Reference specific requirement numbers, not just user stories</guideline>
+        <guideline>Use granular references (e.g., "1.2" not "Requirement 1")</guideline>
+        <guideline>Include multiple requirements when task addresses several</guideline>
+      </guidelines>
+      <examples>
+        <example>Single requirement: _Requirements: 1.2_</example>
+        <example>Multiple requirements: _Requirements: 1.1, 2.3, 3.2_</example>
+        <example>Range of requirements: _Requirements: 2.1-2.4_</example>
+      </examples>
+    </pattern>
+  </task_patterns>
+
+  <file_organization_patterns>
+    <pattern name="feature_directory_structure">
+      <description>Standard directory structure for feature specifications</description>
+      <structure>
+        <directory>.kiro/specs/{feature_name}/</directory>
+        <files>
+          <file>requirements.md</file>
+          <file>design.md</file>
+          <file>tasks.md</file>
+        </files>
+      </structure>
+      <example>
+        .kiro/specs/user-authentication/
+        ├── requirements.md
+        ├── design.md
+        └── tasks.md
+      </example>
+    </pattern>
+
+    <pattern name="document_sections">
+      <description>Standard section structure for each document type</description>
+      <structures>
+        <structure type="requirements">
+          <sections>
+            <section>Introduction</section>
+            <section>Requirements</section>
+            <subsection>Requirement 1</subsection>
+            <subsection>Requirement 2</subsection>
+          </sections>
+        </structure>
+        
+        <structure type="design">
+          <sections>
+            <section>Overview</section>
+            <section>Architecture</section>
+            <section>Components and Interfaces</section>
+            <section>Data Models</section>
+            <section>Error Handling</section>
+            <section>Testing Strategy</section>
+          </sections>
+        </structure>
+        
+        <structure type="tasks">
+          <sections>
+            <section>Implementation Plan</section>
+            <subsection>Task areas with checkbox lists</subsection>
+          </sections>
+        </structure>
+      </structures>
+    </pattern>
+  </file_organization_patterns>
+</common_patterns>

@@ -5,9 +5,45 @@
   "main": "index.html",
   "scripts": {
     "build": "echo 'No build step required - this is a standalone HTML application'",
-    "start": "echo 'Open index.html in a browser'"
+    "start": "echo 'Open index.html in a browser'",
+    "test": "vitest run",
+    "test:ui": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": ["puter", "ai", "app-builder", "react", "fireproof"],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitest/coverage-v8": "^3.0.3",
+    "jsdom": "^25.0.1",
+    "vitest": "^3.0.3"
+  },
+  "dependencies": {
+    "react": "https://esm.sh/react",
+    "react-dom": "https://esm.sh/react-dom",
+    "react-dom/client": "https://esm.sh/react-dom/client",
+    "react/jsx-runtime": "https://esm.sh/react/jsx-runtime",
+    "use-fireproof": "https://esm.sh/use-vibes@0.18.9",
+    "call-ai": "https://esm.sh/call-ai@0.18.9",
+    "use-vibes": "https://esm.sh/use-vibes@0.18.9",
+    "https://esm.sh/use-fireproof": "https://esm.sh/use-vibes@0.18.9",
+    "https://esm.sh/use-vibes": "https://esm.sh/use-vibes@0.18.9"
+  },
+  "vitest": {
+    "environment": "jsdom",
+    "setupFiles": ["./tests/setup.js"],
+    "coverage": {
+      "provider": "v8",
+      "reporter": ["text", "json", "html"],
+      "exclude": [
+        "node_modules/",
+        "tests/",
+        "**/*.test.js",
+        "**/*.spec.js"
+      ]
+    }
+  }
 }

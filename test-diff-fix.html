@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Diff Library Test</title>
+    <script type="importmap">
+    {
+      "imports": {
+        "diff": "https://esm.sh/diff@5.2.0"
+      }
+    }
+    </script>
+</head>
+<body>
+    <h1>Diff Library Test</h1>
+    <div id="output"></div>
+    
+    <script type="module">
+        try {
+            const { diffLines } = await import('diff');
+            
+            // Test basic diff functionality
+            const oldText = "Hello World";
+            const newText = "Hello Universe";
+            
+            const diff = diffLines(oldText, newText);
+            
+            document.getElementById('output').innerHTML = `
+                <h2>✅ Diff Library Loaded Successfully!</h2>
+                <h3>Test Results:</h3>
+                <p><strong>Original:</strong> "${oldText}"</p>
+                <p><strong>Modified:</strong> "${newText}"</p>
+                <p><strong>Diff Result:</strong></p>
+                <pre>${JSON.stringify(diff, null, 2)}</pre>
+            `;
+            
+            console.log('Diff library test passed:', diff);
+        } catch (error) {
+            document.getElementById('output').innerHTML = `
+                <h2>❌ Diff Library Test Failed</h2>
+                <p>Error: ${error.message}</p>
+            `;
+            console.error('Diff library test failed:', error);
+        }
+    </script>
+</body>
+</html>

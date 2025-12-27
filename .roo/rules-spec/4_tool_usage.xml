@@ -1,0 +1,303 @@
+<tool_usage_guide>
+  <overview>
+    Specific tool usage instructions for Spec Creator mode, focusing on file operations,
+    user interaction, and document management for spec-driven development workflow.
+  </overview>
+
+  <tool_priorities>
+    <priority level="1">
+      <tool>ask_followup_question</tool>
+      <when>Always use for user approval and feedback at each phase transition</when>
+      <why>Required for iterative workflow with user approval cycles</why>
+    </priority>
+    
+    <priority level="2">
+      <tool>write_to_file</tool>
+      <when>Creating new spec documents (requirements.md, design.md, tasks.md)</when>
+      <why>Essential for creating structured specification documents</why>
+    </priority>
+
+    <priority level="3">
+      <tool>search_and_replace</tool>
+      <when>Updating existing spec documents based on user feedback</when>
+      <why>Precise modifications to specification documents</why>
+    </priority>
+
+    <priority level="4">
+      <tool>execute_command</tool>
+      <when>Creating directory structure for spec files</when>
+      <why>Directory operations for organizing spec files</why>
+    </priority>
+  </tool_priorities>
+
+  <tool_specific_guidance>
+    <tool name="ask_followup_question">
+      <best_practices>
+        <practice>Use EXACT reason strings as specified in workflow constraints</practice>
+        <practice>Provide 2-4 actionable response options for user approval</practice>
+        <practice>Ask approval questions that encourage explicit confirmation</practice>
+        <practice>Continue feedback-revision cycle until explicit approval received</practice>
+      </best_practices>
+
+      <required_usage_patterns>
+        <pattern name="requirements_approval">
+          <trigger>After creating/updating requirements document</trigger>
+          <question>Do the requirements look good? If so, we can move on to the design.</question>
+          <reason>spec-requirements-review</reason>
+          <expected_responses>
+            <response>Yes, the requirements look good</response>
+            <response>Approved, we can proceed to design</response>
+            <response>Looks good, move to next phase</response>
+            <response>Need to make some changes to the requirements</response>
+          </expected_responses>
+        </pattern>
+
+        <pattern name="design_approval">
+          <trigger>After creating/updating design document</trigger>
+          <question>Does the design look good? If so, we can move on to the implementation plan.</question>
+          <reason>spec-design-review</reason>
+          <expected_responses>
+            <response>Yes, the design is approved</response>
+            <response>Design looks good, proceed to tasks</response>
+            <response>Need to modify the design</response>
+            <response>Go back to requirements first</response>
+          </expected_responses>
+        </pattern>
+
+        <pattern name="tasks_approval">
+          <trigger>After creating/updating tasks document</trigger>
+          <question>Do the tasks look good?</question>
+          <reason>spec-tasks-review</reason>
+          <expected_responses>
+            <response>Yes, the tasks are approved</response>
+            <response>Tasks look good, workflow complete</response>
+            <response>Need to adjust some tasks</response>
+            <response>Need to go back to design phase</response>
+          </expected_responses>
+        </pattern>
+      </required_usage_patterns>
+
+      <example><![CDATA[
+<ask_followup_question>
+<question>Do the requirements look good? If so, we can move on to the design.</question>
+<follow_up>
+  <item>Yes, the requirements look good - proceed to design phase</item>
+  <item>Approved - ready to move to design</item>
+  <item>Need to make some changes to the requirements first</item>
+  <item>Requirements need clarification on user authentication</item>
+</follow_up>
+</ask_followup_question>
+      ]]></example>
+    </tool>
+
+    <tool name="write_to_file">
+      <best_practices>
+        <practice>Create complete document content with all required sections</practice>
+        <practice>Use proper markdown formatting for documentation</practice>
+        <practice>Include placeholder content that follows established patterns</practice>
+        <practice>Create file in correct directory structure (.kiro/specs/{feature_name}/)</practice>
+      </best_practices>
+
+      <file_creation_workflow>
+        <step name="requirements_creation">
+          <description>Create initial requirements document</description>
+          <file_path>.kiro/specs/{feature_name}/requirements.md</file_path>
+          <content_structure>
+            <section>Introduction with feature summary</section>
+            <section>Requirements with EARS format</section>
+            <subsection>User stories and acceptance criteria</subsection>
+          </content_structure>
+          <example_trigger>User provides feature idea → Create requirements.md immediately</example_trigger>
+        </step>
+
+        <step name="design_creation">
+          <description>Create design document after requirements approval</description>
+          <file_path>.kiro/specs/{feature_name}/design.md</file_path>
+          <content_structure>
+            <section>Overview</section>
+            <section>Architecture</section>
+            <section>Components and Interfaces</section>
+            <section>Data Models</section>
+            <section>Error Handling</section>
+            <section>Testing Strategy</section>
+          </content_structure>
+          <example_trigger>Requirements approved → Create design.md with research</example_trigger>
+        </step>
+
+        <step name="tasks_creation">
+          <description>Create implementation tasks after design approval</description>
+          <file_path>.kiro/specs/{feature_name}/tasks.md</file_path>
+          <content_structure>
+            <section>Implementation Plan</section>
+            <subsection>Checkbox list with coding tasks</subsection>
+            <subsection>Task details and requirement references</subsection>
+          </content_structure>
+          <example_trigger>Design approved → Create tasks.md with coding focus</example_trigger>
+        </step>
+      </file_creation_workflow>
+    </tool>
+
+    <tool name="search_and_replace">
+      <best_practices>
+        <practice>Always read existing file content before making changes</practice>
+        <practice>Make comprehensive updates in single operations when possible</practice>
+        <practice>Include exact search text including whitespace and formatting</practice>
+        <practice>Update complete sections rather than individual lines</practice>
+      </best_practices>
+
+      <modification_scenarios>
+        <scenario name="requirements_revision">
+          <description>Update requirements based on user feedback</description>
+          <approach>
+            <step>Read existing requirements.md file</step>
+            <step>Identify specific sections to modify based on user feedback</step>
+            <step>Make precise changes to requirements, acceptance criteria, or user stories</step>
+            <step>Ensure EARS format consistency</step>
+          </approach>
+        </scenario>
+
+        <scenario name="design_revision">
+          <description>Update design based on user feedback</description>
+          <approach>
+            <step>Read existing design.md file</step>
+            <step>Modify sections based on feedback (architecture, components, etc.)</step>
+            <step>Update research findings if design decisions change</step>
+            <step>Maintain document structure and formatting</step>
+          </approach>
+        </scenario>
+
+        <scenario name="tasks_revision">
+          <description>Update implementation tasks based on user feedback</description>
+          <approach>
+            <step>Read existing tasks.md file</step>
+            <step>Modify task descriptions, priorities, or requirement references</step>
+            <step>Ensure all tasks remain coding-focused</step>
+            <step>Update task hierarchy and numbering as needed</step>
+          </approach>
+        </scenario>
+      </modification_scenarios>
+    </tool>
+
+    <tool name="execute_command">
+      <best_practices>
+        <practice>Create directory structure before writing files</practice>
+        <practice>Use mkdir -p for creating nested directories</practice>
+        <practice>Verify directory creation success before file operations</practice>
+      </best_practices>
+
+      <directory_operations>
+        <operation name="create_spec_directory">
+          <command>mkdir -p .kiro/specs/{feature_name}</command>
+          <purpose>Create directory structure for feature specification</purpose>
+          <when_to_use>Before creating any spec documents for a new feature</when_to_use>
+        </operation>
+
+        <operation name="verify_directory">
+          <command>ls -la .kiro/specs/{feature_name}</command>
+          <purpose>Verify directory creation and contents</purpose>
+          <when_to_use>After creating spec directory to confirm structure</when_to_use>
+        </operation>
+      </directory_operations>
+    </tool>
+
+    <tool name="read_file">
+      <best_practices>
+        <practice>Always read existing spec files before making modifications</practice>
+        <practice>Read all three spec documents before executing tasks</practice>
+        <practice>Use file reading to understand current state and requirements</practice>
+      </best_practices>
+
+      <reading_workflow>
+        <document_check>
+          <file>.kiro/specs/{feature_name}/requirements.md</file>
+          <purpose>Understand feature requirements and user stories</purpose>
+          <when>Before any spec work or task execution</when>
+        </document_check>
+
+        <document_check>
+          <file>.kiro/specs/{feature_name}/design.md</file>
+          <purpose>Understand technical design and architecture</purpose>
+          <when>Before creating tasks or implementing features</when>
+        </document_check>
+
+        <document_check>
+          <file>.kiro/specs/{feature_name}/tasks.md</file>
+          <purpose>Understand implementation plan and specific tasks</purpose>
+          <when>Before executing any coding tasks</when>
+        </document_check>
+      </reading_workflow>
+    </tool>
+  </tool_specific_guidance>
+
+  <workflow_integration>
+    <phase_integration>
+      <phase name="requirements">
+        <primary_tools>
+          <tool>write_to_file</tool>
+          <tool>ask_followup_question</tool>
+        </primary_tools>
+        <key_actions>
+          <action>Generate feature name in kebab-case</action>
+          <action>Create requirements.md with EARS format</action>
+          <action>Ask for user approval with spec-requirements-review</action>
+          <action>Iterate until explicit approval received</action>
+        </key_actions>
+      </phase>
+
+      <phase name="design">
+        <primary_tools>
+          <tool>write_to_file</tool>
+          <tool>ask_followup_question</tool>
+          <tool>execute_command</tool>
+        </primary_tools>
+        <key_actions>
+          <action>Research relevant technologies and patterns</action>
+          <action>Create design.md with comprehensive sections</action>
+          <action>Incorporate research findings with citations</action>
+          <action>Ask for user approval with spec-design-review</action>
+        </key_actions>
+      </phase>
+
+      <phase name="tasks">
+        <primary_tools>
+          <tool>write_to_file</tool>
+          <tool>ask_followup_question</tool>
+        </primary_tools>
+        <key_actions>
+          <action>Convert design into discrete coding tasks</action>
+          <action>Create tasks.md with checkbox list format</action>
+          <action>Reference specific requirements in task details</action>
+          <action>Ask for user approval with spec-tasks-review</action>
+        </key_actions>
+      </phase>
+    </phase_integration>
+  </workflow_integration>
+
+  <error_handling>
+    <common_scenarios>
+      <scenario name="user_rejects_requirements">
+        <response>Use ask_followup_question to gather specific feedback</response>
+        <action>Make targeted changes to requirements.md</action>
+        <follow_up>Ask for approval again with spec-requirements-review</action>
+      </scenario>
+
+      <scenario name="design_complexity_issues">
+        <response>Suggest breaking design into smaller components</response>
+        <action>Return to requirements for prioritization if needed</action>
+        <action>Focus on core functionality first</action>
+      </scenario>
+
+      <scenario name="unclear_requirements">
+        <response>Ask targeted questions about specific requirements</response>
+        <action>Provide options when user is unsure</action>
+        <action>Suggest specific areas needing clarification</action>
+      </scenario>
+
+      <scenario name="non_coding_tasks_in_plan">
+        <response>Identify non-coding activities in task list</response>
+        <action>Rewrite tasks to focus on coding activities only</action>
+        <action>Ensure tasks are actionable by coding agents</action>
+      </scenario>
+    </common_scenarios>
+  </error_handling>
+</tool_usage_guide>

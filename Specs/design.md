@@ -1,667 +1,451 @@
-# Puter App Factory - Design Specification
+# Design Document
 
-## 1. Architecture Overview
+## Overview
 
-### 1.1 System Architecture
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Browser Client                        │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │              React Application                    │  │
-│  │  ┌────────────┐  ┌────────────┐  ┌───────────┐  │  │
-│  │  │   Build    │  │    Apps    │  │  Preview  │  │  │
-│  │  │    Tab     │  │    Tab     │  │   Panel   │  │  │
-│  │  └────────────┘  └────────────┘  └───────────┘  │  │
-│  └──────────────────────────────────────────────────┘  │
-│                         ↓                                │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │          Fireproof Database (Local)               │  │
-│  │  - Apps Collection    - Versions Collection       │  │
-│  └──────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│                   Puter Platform API                     │
-│  ┌────────────┐  ┌────────────┐  ┌──────────────────┐  │
-│  │    Auth    │  │ Filesystem │  │    AI Service    │  │
-│  │   OAuth    │  │  mkdir()   │  │  chat(model)     │  │
-│  └────────────┘  │  write()   │  │  models list     │  │
-│  ┌────────────┐  └────────────┘  └──────────────────┘  │
-│  │  Hosting   │  ┌────────────┐                         │
-│  │  create()  │  │  Apps API  │                         │
-│  │  delete()  │  │  create()  │                         │
-│  └────────────┘  │  launch()  │                         │
-│                  └────────────┘                         │
-└─────────────────────────────────────────────────────────┘
-```
+The Puter App Factory enhancement design addresses the comprehensive feature set outlined in the requirements, encompassing 12 major categories: UI/UX enhancements, advanced app building, collaboration, integrations, analytics, performance optimization, security, accessibility, mobile/cross-platform support, AI automation, templates/assets management, and version control/deployment. The design adopts a modular, extensible architecture that allows incremental implementation while maintaining system coherence and scalability.
 
-### 1.2 Component Hierarchy
-```
-App (Root)
-├── Header
-│   ├── Logo/Title
-│   ├── Analytics Button
-│   ├── Export Button
-│   ├── User Info / Sign In Button
-│   └── Analytics Panel (conditional)
-├── Tab Navigation
-│   ├── Build Tab Button
-│   └── Apps Tab Button
-├── Left Panel (Sidebar)
-│   ├── Build Form (if Build tab active)
-│   │   ├── Template Button
-│   │   ├── Provider Filter
-│   │   ├── Model Selector
-│   │   ├── Prompt Textarea
-│   │   ├── App Name Input
-│   │   ├── App Title Input
-│   │   └── Build & Deploy Button
-│   ├── Apps List (if Apps tab active)
-│   │   ├── Search Input
-│   │   ├── Filter/Sort Controls
-│   │   ├── Bulk Mode Toggle
-│   │   └── App Cards
-│   └── Log Panel
-├── Preview Panel (Right, 2 columns)
-│   ├── Preview Header
-│   │   ├── Window Controls (dots)
-│   │   ├── App Title/Version
-│   │   ├── Version History Button
-│   │   ├── Share Button
-│   │   ├── Export Button
-│   │   ├── Code Toggle Button
-│   │   ├── Launch Button
-│   │   └── Redeploy Button (conditional)
-│   ├── Preview Content
-│   │   ├── Iframe (preview mode)
-│   │   └── Textarea (code mode)
-│   └── App Details Card (if app selected)
-└── Modals
-    ├── Template Modal
-    ├── Version History Modal
-    ├── Share Link Modal
-    └── Export/Import Modal
-```
+## Research Findings
 
-### 1.3 Data Flow
+### Architecture Patterns Analysis
+**Sources:** Microsoft Azure Architecture Center, AWS Well-Architected Framework, Google Cloud Architecture Framework
+
+**Key Findings:**
+- Micro-frontend architecture enables independent feature development and deployment
+- Event-driven architecture supports real-time collaboration features
+- CQRS (Command Query Responsibility Segregation) pattern optimizes complex data operations
+- Plugin architecture provides extensibility for third-party integrations
+
+**Design Decision:** Implement a modular monolith with clear bounded contexts, allowing features to be developed independently while maintaining shared infrastructure.
+
+### Frontend Framework Evolution
+**Sources:** React 18+ documentation, Vue.js ecosystem analysis, Svelte adoption trends
+
+**Key Findings:**
+- React remains dominant for complex applications with excellent ecosystem support
+- Component composition patterns enable reusable UI libraries
+- Virtual DOM optimization techniques handle complex state management
+- Accessibility-first development improves compliance and user experience
+
+**Design Decision:** Extend current React architecture with advanced patterns including compound components, render props, and custom hooks for feature-specific functionality.
+
+### Backend Scalability Patterns
+**Sources:** Netflix Technology Blog, Uber Engineering, Stripe API Design
+
+**Key Findings:**
+- API Gateway pattern centralizes cross-cutting concerns (auth, rate limiting, logging)
+- Circuit breaker pattern prevents cascade failures in distributed systems
+- Database sharding strategies support horizontal scaling
+- Event sourcing enables complex audit trails and temporal queries
+
+**Design Decision:** Implement layered architecture with API Gateway, service mesh for inter-service communication, and event-driven data synchronization.
+
+### Security Architecture Trends
+**Sources:** OWASP Top 10 (2024), NIST Cybersecurity Framework, Zero Trust Architecture
+
+**Key Findings:**
+- Zero Trust model requires continuous verification
+- JWT with refresh token rotation provides secure session management
+- Content Security Policy (CSP) prevents XSS attacks
+- Rate limiting and circuit breakers protect against DoS attacks
+
+**Design Decision:** Implement defense-in-depth security with multiple layers: network, application, and data protection.
+
+### Testing Strategy Evolution
+**Sources:** Google Testing Blog, Microsoft Test Engineering, Kent C. Dodds Testing Trophy
+
+**Key Findings:**
+- Integration testing provides best ROI for complex applications
+- Visual regression testing catches UI inconsistencies
+- Property-based testing uncovers edge cases
+- Chaos engineering validates system resilience
+
+**Design Decision:** Adopt Testing Trophy approach with emphasis on integration tests, supplemented by unit tests for critical logic and E2E tests for user workflows.
+
+## Architecture
+
+The enhanced Puter App Factory follows a layered, modular architecture designed to accommodate all feature categories while maintaining scalability and maintainability.
+
 ```
-User Input → React State → Actions
-                ↓
-        Validation/Processing
-                ↓
-        ┌───────┴────────┐
-        ↓                ↓
-   Puter API       Fireproof DB
-        ↓                ↓
-   Response         LiveQuery
-        ↓                ↓
-   React State ← ─ ─ ─ ─ ┘
+[Presentation Layer] ← React Components, Micro-frontends
         ↓
-   UI Update
+[Application Layer] ← Feature Modules, Business Logic
+        ↓
+[Integration Layer] ← API Gateway, Service Mesh
+        ↓
+[Data Layer] ← Primary DB, Caches, Search Indices, File Storage
+        ↓
+[Infrastructure] ← Cloud Services, CDNs, Monitoring
 ```
 
-## 2. UI Design System
+### Core Architectural Principles
 
-### 2.1 Neomorphic Design Language
+1. **Modular Monolith**: Features are developed as independent modules within a single deployable unit
+2. **Event-Driven Communication**: Loose coupling through event buses and message queues
+3. **Plugin Architecture**: Extensible system allowing third-party integrations
+4. **Progressive Enhancement**: Core functionality works without advanced features
+5. **Zero-Trust Security**: Continuous authentication and authorization
 
-#### Color Palette
-```css
-/* Background */
---bg-base: #e8e8e8;
+### Technology Stack Extensions
 
-/* Primary Accent */
---primary: #dc2626;
---primary-dark: #b91c1c;
---primary-light: #ef4444;
+- **Frontend**: React 18+, TypeScript, Tailwind CSS, React DnD, Framer Motion
+- **Backend**: Node.js/Express enhanced with middleware layers
+- **Database**: PostgreSQL with extensions, Redis for caching and sessions
+- **Search**: Elasticsearch for advanced search capabilities
+- **Real-time**: Socket.io for collaboration features
+- **File Storage**: Enhanced Puter SDK with CDN integration
+- **Security**: Helmet.js, rate limiting, input validation libraries
+- **Testing**: Jest, React Testing Library, Playwright, Cypress
+- **Monitoring**: Application Insights, error tracking, performance monitoring
 
-/* Text Colors */
---text-primary: #1a1a1a;
---text-secondary: #666666;
---text-tertiary: #888888;
---text-placeholder: #999999;
+## Components and Interfaces
 
-/* Borders */
---border: #d0d0d0;
+### Core System Components
 
-/* Shadows (for neomorphism) */
---shadow-light: #ffffff;
---shadow-dark: #c5c5c5;
-```
+#### AppFactoryCore Component
 
-#### Neomorphic Styles
-```css
-/* Raised Surface */
-.neu {
-  background: #e8e8e8;
-  box-shadow: 8px 8px 16px #c5c5c5,
-              -8px -8px 16px #ffffff;
+**Purpose:** Central orchestration component managing application lifecycle and module coordination
+
+**Interface:**
+- Input: AppConfiguration, FeatureModules, UserContext
+- Output: RenderedApplication, SystemEvents, ErrorStates
+- Dependencies: ModuleLoader, EventBus, SecurityManager
+
+**Responsibilities:**
+- Load and initialize feature modules
+- Coordinate inter-module communication
+- Manage application state and routing
+- Handle system-wide error recovery
+
+#### FeatureModuleManager Component
+
+**Purpose:** Manages loading, configuration, and lifecycle of feature modules
+
+**Interface:**
+- Input: ModuleConfigurations, SystemCapabilities
+- Output: LoadedModules, ModuleHealthStatus
+- Dependencies: PluginLoader, ConfigurationManager
+
+**Responsibilities:**
+- Dynamically load feature modules
+- Resolve module dependencies
+- Provide module isolation and sandboxing
+- Monitor module performance and health
+
+#### SecurityManager Component
+
+**Purpose:** Centralized security policy enforcement and authentication management
+
+**Interface:**
+- Input: UserCredentials, AccessRequests, SecurityPolicies
+- Output: AuthTokens, AccessDecisions, SecurityEvents
+- Dependencies: AuthProviders, PolicyEngine, AuditLogger
+
+**Responsibilities:**
+- Multi-factor authentication handling
+- Role-based access control (RBAC)
+- Input validation and sanitization
+- Security event logging and monitoring
+
+### Feature-Specific Components
+
+#### UIEnhancementModule Component
+
+**Purpose:** Manages advanced UI/UX features including drag-and-drop, themes, and voice input
+
+**Interface:**
+- Input: UserInteractions, ThemeConfigurations, VoiceCommands
+- Output: EnhancedUIElements, ThemeApplications, VoiceResponses
+- Dependencies: DragDropLibrary, ThemeEngine, SpeechAPI
+
+**Responsibilities:**
+- Drag-and-drop component positioning
+- Dynamic theme application and switching
+- Voice command processing and execution
+- Mobile gesture recognition and handling
+
+#### CollaborationModule Component
+
+**Purpose:** Handles real-time collaboration, commenting, and team workspaces
+
+**Interface:**
+- Input: CollaborationEvents, UserActions, WorkspaceConfigurations
+- Output: SynchronizedUpdates, NotificationEvents, WorkspaceData
+- Dependencies: WebSocketManager, ConflictResolver, PermissionEngine
+
+**Responsibilities:**
+- Real-time document synchronization
+- Comment threading and management
+- Workspace access control
+- Conflict resolution for concurrent edits
+
+#### AnalyticsModule Component
+
+**Purpose:** Collects, processes, and visualizes application and user analytics
+
+**Interface:**
+- Input: UsageEvents, PerformanceMetrics, UserInteractions
+- Output: AnalyticsReports, Charts, Insights
+- Dependencies: DataCollector, MetricProcessor, VisualizationEngine
+
+**Responsibilities:**
+- Event tracking and aggregation
+- A/B testing framework management
+- Performance metric collection
+- User behavior analysis
+
+#### IntegrationModule Component
+
+**Purpose:** Manages third-party API integrations, GitHub connections, and plugin system
+
+**Interface:**
+- Input: IntegrationRequests, APIConfigurations, PluginPackages
+- Output: IntegrationResults, APIResponses, PluginExecutions
+- Dependencies: HTTPClient, OAuthManager, PluginSandbox
+
+**Responsibilities:**
+- API authentication and request handling
+- OAuth flow management
+- Plugin loading and execution
+- Data transformation and mapping
+
+#### AIModule Component
+
+**Purpose:** Provides AI-powered features including code completion, testing, and content generation
+
+**Interface:**
+- Input: CodeSnippets, TestScenarios, ContentRequests
+- Output: AIResponses, GeneratedCode, TestCases
+- Dependencies: AIProvider, CodeAnalyzer, ContentGenerator
+
+**Responsibilities:**
+- Intelligent code completion
+- Automated test case generation
+- Error detection and fixing suggestions
+- Content and data generation
+
+## Data Models
+
+### Core Data Models
+
+#### Application Model
+
+```typescript
+interface Application {
+  id: string;
+  name: string;
+  description?: string;
+  ownerId: string;
+  collaborators: Collaborator[];
+  modules: FeatureModule[];
+  configuration: AppConfiguration;
+  version: VersionInfo;
+  metadata: AppMetadata;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-/* Inset/Pressed Surface */
-.neu-inset {
-  background: #e8e8e8;
-  box-shadow: inset 4px 4px 8px #c5c5c5,
-              inset -4px -4px 8px #ffffff;
+interface AppConfiguration {
+  theme: ThemeSettings;
+  features: FeatureFlags;
+  integrations: IntegrationConfigs[];
+  security: SecuritySettings;
+  performance: PerformanceSettings;
 }
 
-/* Interactive Button */
-.neu-btn {
-  background: #e8e8e8;
-  box-shadow: 5px 5px 10px #c5c5c5,
-              -5px -5px 10px #ffffff;
-  transition: all 150ms;
-}
-
-.neu-btn:hover {
-  box-shadow: 2px 2px 5px #c5c5c5,
-              -2px -2px 5px #ffffff;
-}
-
-.neu-btn:active {
-  box-shadow: inset 4px 4px 8px #c5c5c5,
-              inset -4px -4px 8px #ffffff;
-}
-
-/* Red Accent Button */
-.neu-btn-red {
-  background: #dc2626;
-  color: white;
-  box-shadow: 5px 5px 10px #c5c5c5,
-              -5px -5px 10px #ffffff;
-}
-
-.neu-btn-red:active {
-  box-shadow: inset 4px 4px 8px #b91c1c,
-              inset -4px -4px 8px #ef4444;
-}
-
-/* Black Accent Button */
-.neu-btn-black {
-  background: #1a1a1a;
-  color: white;
-  box-shadow: 5px 5px 10px #c5c5c5,
-              -5px -5px 10px #ffffff;
-}
-
-.neu-btn-black:active {
-  box-shadow: inset 4px 4px 8px #000,
-              inset -4px -4px 8px #333;
-}
-```
-
-### 2.2 Typography
-```css
-/* Primary Heading */
-h1 {
-  font-size: 2rem;        /* 32px */
-  font-weight: 900;       /* Black */
-  color: #1a1a1a;
-}
-
-/* Secondary Heading */
-h2 {
-  font-size: 1.5rem;      /* 24px */
-  font-weight: 900;
-  color: #1a1a1a;
-}
-
-/* Card Title */
-h3 {
-  font-size: 1.25rem;     /* 20px */
-  font-weight: 900;
-  color: #1a1a1a;
-}
-
-/* Body Text */
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", 
-               Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-size: 0.875rem;    /* 14px */
-  color: #666;
-}
-
-/* Monospace (code) */
-.font-mono {
-  font-family: "SF Mono", Monaco, "Cascadia Code", 
-               "Courier New", monospace;
-  font-size: 0.75rem;     /* 12px */
-}
-
-/* Labels */
-label {
-  font-size: 0.75rem;     /* 12px */
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #1a1a1a;
-}
-```
-
-### 2.3 Spacing System
-```css
-/* Based on 4px grid */
---space-1: 0.25rem;   /* 4px */
---space-2: 0.5rem;    /* 8px */
---space-3: 0.75rem;   /* 12px */
---space-4: 1rem;      /* 16px */
---space-5: 1.25rem;   /* 20px */
---space-6: 1.5rem;    /* 24px */
---space-8: 2rem;      /* 32px */
---space-12: 3rem;     /* 48px */
-```
-
-### 2.4 Border Radius
-```css
---radius-sm: 0.5rem;    /* 8px - small elements */
---radius-md: 0.75rem;   /* 12px - buttons, inputs */
---radius-lg: 1rem;      /* 16px - cards */
---radius-xl: 1.5rem;    /* 24px - panels */
---radius-2xl: 2rem;     /* 32px - major sections */
---radius-full: 9999px;  /* Fully rounded */
-```
-
-### 2.5 Iconography
-The application uses emoji icons throughout for visual clarity:
-- ⚡ Lightning - Speed/Power
-- 📱 Mobile Phone - Apps
-- 🔨 Hammer - Build
-- 📊 Chart - Analytics
-- 📦 Package - Export/Import
-- 🔗 Link - Share
-- 📚 Books - Version History
-- ⭐ Star - Favorite
-- 🗑️ Trash - Delete
-- ▶️ Play - Launch
-- 👁️ Eye - Views
-- ✅ Checkmark - Success
-- ❌ X Mark - Error
-
-## 3. Layout Design
-
-### 3.1 Responsive Grid
-```
-Desktop (>1024px):
-┌─────────────────────────────────────────────┐
-│                  Header                      │
-├─────────┬───────────────────────────────────┤
-│  Left   │                                   │
-│  Panel  │        Preview Panel              │
-│ (33%)   │           (67%)                   │
-│         │                                   │
-└─────────┴───────────────────────────────────┘
-
-Mobile (<1024px):
-┌──────────────────┐
-│     Header       │
-├──────────────────┤
-│   Left Panel     │
-│    (100%)        │
-├──────────────────┤
-│  Preview Panel   │
-│    (100%)        │
-└──────────────────┘
-```
-
-### 3.2 Component Layouts
-
-#### Header Layout
-```
-┌─────────────────────────────────────────────────────────┐
-│ ⚡ PUTER APP FACTORY     [📊] [📦] [👤 user] [Logout]  │
-│ N models • M apps • K views                             │
-│                                                         │
-│ [Analytics Panel - 6 column grid] (if visible)         │
-└─────────────────────────────────────────────────────────┘
-```
-
-#### Tab Navigation
-```
-┌─────────────────────────────────────┐
-│  [🔨 Build]  [📱 Apps]              │
-└─────────────────────────────────────┘
-```
-
-#### Build Form Layout
-```
-┌─────────────────────────────────────┐
-│  [🎨 Choose Template]               │
-│                                     │
-│  Provider: [All][OpenAI][...]       │
-│                                     │
-│  Model: [dropdown ▼]                │
-│                                     │
-│  App Description:                   │
-│  [textarea.....................]    │
-│  [...........................]    │
-│                                     │
-│  App Name:    │  Title:            │
-│  [input....]  │  [input.......]    │
-│                                     │
-│  [🚀 Build & Deploy]                │
-└─────────────────────────────────────┘
-```
-
-#### Apps List Layout
-```
-┌─────────────────────────────────────┐
-│  [🔍 Search apps...............]    │
-│  [⭐ Favorites][Sort▼][☑️ Select]  │
-│                                     │
-│  ┌─────────────────────────────┐   │
-│  │ 📱 App Title         [⭐][▶]│   │
-│  │ v1 • 👁️ 5                  │   │
-│  │ Description...              │   │
-│  └─────────────────────────────┘   │
-│  ┌─────────────────────────────┐   │
-│  │ 📱 Another App      [☆][▶] │   │
-│  │ v2 • 👁️ 12                 │   │
-│  │ Description...              │   │
-│  └─────────────────────────────┘   │
-└─────────────────────────────────────┘
-```
-
-#### Preview Panel Layout
-```
-┌───────────────────────────────────────────────┐
-│ ● ● ●  App Name v2   [📚][🔗][📤][</>][Launch]│
-├───────────────────────────────────────────────┤
-│                                               │
-│          [Iframe Preview or Code Editor]      │
-│                                               │
-│                                               │
-└───────────────────────────────────────────────┘
-┌───────────────────────────────────────────────┐
-│ 📱 App Details                                │
-│ ID: app-name • Version: 2 • Views: 5          │
-│ URL: https://app.puter.site                   │
-│ Model: gpt-4o-mini                            │
-│                          [⭐][🚀 Launch][🗑️]  │
-└───────────────────────────────────────────────┘
-```
-
-## 4. Interaction Design
-
-### 4.1 User Flows
-
-#### Primary Flow: Create App
-```
-1. Sign In (if not authenticated)
-   → Click "Sign In Free"
-   → Redirect to Puter OAuth
-   → Return to app
-
-2. Select Template (optional)
-   → Click "🎨 Choose Template"
-   → Modal opens with 12 templates
-   → Click template card
-   → Prompt and title auto-filled
-
-3. Configure
-   → Select provider filter
-   → Select model from dropdown
-   → Enter/edit description
-   → Enter app name (optional)
-   → Enter title (optional)
-
-4. Generate
-   → Click "🚀 Build & Deploy"
-   → Button disabled, shows "⏳ Building..."
-   → Log panel shows progress
-   → Preview shows spinner
-
-5. Result
-   → App appears in preview
-   → Opens in new tab
-   → Added to apps list
-   → Form cleared
-```
-
-#### Secondary Flow: Edit App
-```
-1. Select App
-   → Switch to Apps tab
-   → Search/filter as needed
-   → Click app card
-
-2. View Code
-   → Click "</>" toggle
-   → Code editor appears
-
-3. Edit
-   → Modify code in textarea
-   → "Redeploy" button appears
-
-4. Redeploy
-   → Click "Redeploy"
-   → Progress shown in log
-   → Version incremented
-   → New tab opens with updated app
-```
-
-### 4.2 State Indicators
-
-#### Loading States
-```
-Button States:
-- Default: "🚀 Build & Deploy"
-- Loading: "⏳ Building..." (disabled)
-- Success: Returns to default
-
-Preview States:
-- Empty: Shows placeholder with "📱 APP PREVIEW"
-- Loading: Shows spinner ⚙️ with "BUILDING..."
-- Loaded: Shows iframe or code editor
-```
-
-#### Error States
-```
-- Log shows "❌ Error: {message}" in red
-- Button returns to active state
-- User can retry
-```
-
-#### Selection States
-```
-App Cards:
-- Unselected: Normal neu style
-- Selected: neu-inset style (pressed look)
-- Hover: Slightly darker background
-
-Favorites:
-- Not favorited: Empty star ☆
-- Favorited: Filled star ⭐
-```
-
-### 4.3 Animations & Transitions
-
-#### Button Interactions
-```css
-transition: all 150ms ease-in-out;
-
-/* Shadow changes on hover/active create 3D effect */
-```
-
-#### Modal Entrance
-```css
-/* Fade in background */
-background: rgba(0, 0, 0, 0);
-animation: fadeIn 200ms forwards;
-
-/* Scale in content */
-transform: scale(0.9);
-animation: scaleIn 200ms ease-out forwards;
-```
-
-#### Loading Spinner
-```css
-.loading-spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+interface FeatureModule {
+  id: string;
+  name: string;
+  version: string;
+  enabled: boolean;
+  configuration: ModuleConfig;
+  dependencies: string[];
 }
 ```
 
-## 5. Modal Designs
+#### User and Authentication Models
 
-### 5.1 Template Modal
-```
-┌────────────────────────────────────────┐
-│  🎨 App Templates                      │
-│                                        │
-│  ┌────┐ ┌────┐ ┌────┐                 │
-│  │ ✅ │ │ 🔢 │ │ 📝 │                 │
-│  │Todo│ │Calc│ │Note│                 │
-│  └────┘ └────┘ └────┘                 │
-│  ┌────┐ ┌────┐ ┌────┐                 │
-│  │ ⏱️  │ │ 🌤️ │ │ 📋 │                 │
-│  │Timer│ │Wthr│ │Kanb│                 │
-│  └────┘ └────┘ └────┘                 │
-│  [more templates...]                   │
-│                                        │
-│  [Close]                               │
-└────────────────────────────────────────┘
-```
-
-### 5.2 Version History Modal
-```
-┌────────────────────────────────────────┐
-│  📚 Version History                    │
-│                                        │
-│  ┌──────────────────────────────────┐ │
-│  │ Version 3               [Restore]│ │
-│  │ 2024-12-26 10:30 AM             │ │
-│  └──────────────────────────────────┘ │
-│  ┌──────────────────────────────────┐ │
-│  │ Version 2               [Restore]│ │
-│  │ 2024-12-25 3:15 PM              │ │
-│  └──────────────────────────────────┘ │
-│  ┌──────────────────────────────────┐ │
-│  │ Version 1 (Initial)     [Restore]│ │
-│  │ 2024-12-24 9:00 AM              │ │
-│  └──────────────────────────────────┘ │
-│                                        │
-│  [Close]                               │
-└────────────────────────────────────────┘
-```
-
-### 5.3 Share Link Modal
-```
-┌────────────────────────────────────────┐
-│  🔗 Share App                          │
-│                                        │
-│  ┌──────────────────────────────────┐ │
-│  │ https://origin.com?share=abc123  │ │
-│  └──────────────────────────────────┘ │
-│                                        │
-│  [📋 Copy Link]  [Close]              │
-└────────────────────────────────────────┘
-```
-
-### 5.4 Export/Import Modal
-```
-┌────────────────────────────────────────┐
-│  📦 Export / Import                    │
-│                                        │
-│  [📤 Export All Apps (JSON)]          │
-│  [📥 Import Apps (JSON)]              │
-│                                        │
-│  [Close]                               │
-└────────────────────────────────────────┘
-```
-
-## 6. Accessibility Considerations
-
-### 6.1 Keyboard Navigation
-- All interactive elements focusable
-- Visible focus indicators
-- Tab order follows logical flow
-- Enter/Space activate buttons
-- Escape closes modals
-
-### 6.2 Screen Reader Support
-- Semantic HTML elements
-- ARIA labels for icon buttons
-- Status announcements for async operations
-- Proper heading hierarchy
-
-### 6.3 Color Contrast
-- Text on background: Minimum 4.5:1 ratio
-- Primary red (#dc2626) on light gray passes WCAG AA
-- All text meets contrast requirements
-
-## 7. Responsive Breakpoints
-
-```css
-/* Mobile */
-@media (max-width: 640px) {
-  /* Single column layout */
-  /* Larger touch targets (min 44x44px) */
-  /* Stack navigation */
+```typescript
+interface User {
+  id: string;
+  email: string;
+  profile: UserProfile;
+  authentication: AuthMethods;
+  preferences: UserPreferences;
+  workspaces: Workspace[];
+  permissions: PermissionSet;
+  activity: UserActivity;
 }
 
-/* Tablet */
-@media (min-width: 641px) and (max-width: 1024px) {
-  /* Two column layout */
-  /* Adjusted spacing */
+interface AuthMethods {
+  emailPassword?: EmailAuth;
+  socialProviders: SocialAuth[];
+  mfaEnabled: boolean;
+  lastLogin: Date;
+  sessionExpiry: Date;
 }
 
-/* Desktop */
-@media (min-width: 1025px) {
-  /* Three column layout */
-  /* Full feature set visible */
+interface Workspace {
+  id: string;
+  name: string;
+  ownerId: string;
+  members: WorkspaceMember[];
+  applications: Application[];
+  permissions: WorkspacePermissions;
 }
 ```
 
-## 8. Design Tokens
+#### Analytics and Monitoring Models
 
-### 8.1 Complete Token System
-```javascript
-const designTokens = {
-  colors: {
-    background: '#e8e8e8',
-    primary: '#dc2626',
-    primaryDark: '#b91c1c',
-    primaryLight: '#ef4444',
-    textPrimary: '#1a1a1a',
-    textSecondary: '#666666',
-    textTertiary: '#888888',
-    border: '#d0d0d0',
-    shadowLight: '#ffffff',
-    shadowDark: '#c5c5c5',
-  },
-  spacing: {
-    xs: '4px',
-    sm: '8px',
-    md: '16px',
-    lg: '24px',
-    xl: '32px',
-    '2xl': '48px',
-  },
-  borderRadius: {
-    sm: '8px',
-    md: '12px',
-    lg: '16px',
-    xl: '24px',
-    '2xl': '32px',
-    full: '9999px',
-  },
-  fontSize: {
-    xs: '12px',
-    sm: '14px',
-    base: '16px',
-    lg: '20px',
-    xl: '24px',
-    '2xl': '32px',
-  },
-  fontWeight: {
-    normal: 400,
-    bold: 700,
-    black: 900,
-  },
-};
+```typescript
+interface AnalyticsEvent {
+  id: string;
+  type: EventType;
+  userId?: string;
+  applicationId?: string;
+  properties: Record<string, any>;
+  timestamp: Date;
+  sessionId: string;
+  userAgent: string;
+}
+
+interface PerformanceMetric {
+  id: string;
+  applicationId: string;
+  type: MetricType;
+  value: number;
+  timestamp: Date;
+  metadata: MetricMetadata;
+}
+
+interface ABTest {
+  id: string;
+  name: string;
+  variants: TestVariant[];
+  audience: TestAudience;
+  metrics: TestMetrics[];
+  status: TestStatus;
+  results: TestResults;
+}
 ```
 
-This design specification provides a comprehensive blueprint for the UI/UX of the Puter App Factory application, ensuring consistency and maintainability.
+### Integration Models
+
+```typescript
+interface IntegrationConfig {
+  id: string;
+  type: IntegrationType;
+  provider: string;
+  credentials: SecureCredentials;
+  endpoints: APIEndpoint[];
+  rateLimits: RateLimitConfig;
+  retryPolicy: RetryPolicy;
+}
+
+interface Plugin {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  permissions: PluginPermissions;
+  entryPoint: string;
+  dependencies: PluginDependency[];
+  configuration: PluginConfig;
+}
+```
+
+## Error Handling
+
+### Error Classification and Handling Strategy
+
+#### System-Level Errors
+1. **Infrastructure Failures:**
+   - **Trigger:** Database connection loss, service unavailability
+   - **Response:** Circuit breaker activation, graceful degradation, user notification
+   - **Recovery:** Automatic retry with exponential backoff, manual failover
+
+2. **Authentication/Authorization Errors:**
+   - **Trigger:** Invalid tokens, insufficient permissions, expired sessions
+   - **Response:** Redirect to login, show access denied, log security events
+   - **Recovery:** Token refresh, re-authentication flow
+
+3. **Data Validation Errors:**
+   - **Trigger:** Invalid user input, malformed API requests
+   - **Response:** Return validation errors with specific field information
+   - **Recovery:** Client-side validation updates, user guidance
+
+#### Feature-Specific Error Scenarios
+
+4. **Collaboration Conflicts:**
+   - **Trigger:** Simultaneous edits to same resource
+   - **Response:** Conflict resolution UI, merge suggestions
+   - **Recovery:** User-guided conflict resolution, auto-merge where safe
+
+5. **Integration Failures:**
+   - **Trigger:** Third-party API timeouts, rate limiting, authentication failures
+   - **Response:** Fallback to cached data, queue for retry, user notification
+   - **Recovery:** Automatic retry, alternative integration paths
+
+6. **Performance Issues:**
+   - **Trigger:** Slow queries, memory leaks, high CPU usage
+   - **Response:** Query optimization, caching activation, resource scaling
+   - **Recovery:** Performance monitoring alerts, automatic optimization
+
+### Error Recovery Patterns
+
+- **Retry Pattern**: Exponential backoff for transient failures
+- **Fallback Pattern**: Graceful degradation when services unavailable
+- **Circuit Breaker**: Prevent cascade failures in distributed systems
+- **Saga Pattern**: Complex transaction rollback across multiple services
+- **Supervisor Pattern**: Restart failed components automatically
+
+## Testing Strategy
+
+### Testing Pyramid Implementation
+
+#### Unit Testing (70% of tests)
+- **Component Logic**: React component business logic, custom hooks
+- **Service Functions**: API calls, data transformations, utility functions
+- **Model Validation**: Data model constraints, business rules
+- **Integration Points**: Mock external services, test error handling
+
+#### Integration Testing (20% of tests)
+- **API Endpoints**: Full request/response cycles with database
+- **Component Integration**: Component interaction within feature modules
+- **Cross-Module Communication**: Event passing between modules
+- **External Integrations**: Real API calls to third-party services
+
+#### End-to-End Testing (10% of tests)
+- **User Workflows**: Complete feature usage scenarios
+- **Cross-Feature Interactions**: Features working together
+- **Performance Validation**: Realistic load testing
+- **Accessibility Compliance**: Automated accessibility checks
+
+### Testing Infrastructure
+
+#### Test Environments
+- **Development**: Local testing with mocks and stubs
+- **Integration**: Full system testing with real dependencies
+- **Staging**: Production-like environment for final validation
+- **Production**: Synthetic monitoring and canary deployments
+
+#### Test Automation
+- **CI/CD Integration**: Automated test execution on every commit
+- **Visual Regression**: Screenshot comparison for UI changes
+- **Load Testing**: Performance validation under various conditions
+- **Security Testing**: Automated vulnerability scanning
+
+### Test Data Management
+
+#### Test Data Strategy
+- **Factories**: Generate consistent test data across environments
+- **Fixtures**: Predefined data sets for complex scenarios
+- **Mock Services**: Simulated external dependencies
+- **Data Cleanup**: Automated test data removal and reset
+
+#### Coverage Goals
+- **Line Coverage**: >80% for critical business logic
+- **Branch Coverage**: >75% for decision points
+- **Integration Coverage**: All major user workflows tested
+- **Accessibility Coverage**: All UI components WCAG compliant
+
+This comprehensive design provides a solid foundation for implementing all proposed features while maintaining system stability, security, and performance. The modular architecture allows for incremental development, and the extensive testing strategy ensures quality and reliability.
