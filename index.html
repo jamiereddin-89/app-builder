@@ -59,6 +59,7 @@ export default function App() {
   const [appName, setAppName] = useState("");
   const [appTitle, setAppTitle] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [generationStage, setGenerationStage] = useState("");
   const [selectedApp, setSelectedApp] = useState(null);
   const [editCode, setEditCode] = useState("");
   const [models, setModels] = useState([]);
@@ -265,6 +266,7 @@ export default function App() {
     const finalPrompt = customPrompt || prompt;
     if (!finalPrompt.trim() || !puter || !user) return;
     setGenerating(true);
+    setGenerationStage("Initializing...");
     setSelectedApp(null);
     setEditCode("");
     setLog([]);
@@ -272,6 +274,7 @@ export default function App() {
     
     try {
       addLog(`Model: ${model}`);
+      setGenerationStage("Generating code...");
       addLog("Generating code...");
 
       const systemPrompt = `You are an expert web developer. Create a COMPLETE single HTML file app.
@@ -297,18 +300,21 @@ RULES:
 
       addLog(`Generated ${code.length} bytes`);
       
+      setGenerationStage("Creating filesystem...");
       addLog("Creating directory...");
       const dirName = `app_${Date.now()}`;
       await puter.fs.mkdir(dirName);
       await puter.fs.write(`${dirName}/index.html`, code);
       addLog(`Wrote to ${dirName}/index.html`);
 
+      setGenerationStage("Deploying...");
       addLog("Creating hosted site...");
       const subdomain = appName.trim().toLowerCase().replace(/[^a-z0-9-]/g, "") || puter.randName();
       const site = await puter.hosting.create(subdomain, dirName);
       const hostedUrl = `https://${site.subdomain}.puter.site`;
       addLog(`Hosted at: ${hostedUrl}`);
 
+      setGenerationStage("Registering app...");
       addLog("Registering Puter app...");
       const finalAppName = appName.trim() || puter.randName();
       const finalAppTitle = appTitle.trim() || finalPrompt.slice(0, 50);
@@ -337,6 +343,7 @@ RULES:
         addLog(`App registered: ${puterApp.name}`);
       }
 
+      setGenerationStage("Saving to database...");
       addLog("Saving to database...");
       const doc = await database.put({
         type: "app",
@@ -373,10 +380,12 @@ RULES:
       setPrompt("");
       setSelectedTemplate(null);
       setTags([]);
+      setGenerationStage("");
       addLog("✅ Complete!");
       window.open(hostedUrl, "_blank");
 
     } catch (err) {
+      setGenerationStage("");
       addLog(`❌ Error: ${err.message}`);
     }
     setGenerating(false);
@@ -1158,6 +1167,9 @@ RULES:
                         <div className={`font-black ${textPrimary} text-lg`}>
                           {generating ? "BUILDING..." : "APP PREVIEW"}
                         </div>
+                        {generating && generationStage && (
+                          <div className={`${textSecondary} text-sm mt-2`}>{generationStage}</div>
+                        )}
                         {!generating && (
                           <div className={`${textMuted} text-sm mt-2`}>Build or select an app</div>
                         )}
