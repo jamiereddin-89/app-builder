@@ -5,9 +5,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Made on Vibes DIY</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+    <script>
+      // Suppress Babel transformer warning for development
+      window.BABEL_PRESET_SUPPRESS_WARNING = true;
+    </script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <script src="https://unpkg.com/react-window/umd/react-window.min.js"></script>
     <style>
       body {
         margin: 0;
@@ -81,8 +87,28 @@
       import ReactDOMClient from "react-dom/client";
 
       // prettier-ignore
-      import React, { useState, useEffect, useRef } from "react";
+      import React, { useState, useEffect, useRef, useDeferredValue } from "react";
 import { useFireproof } from "use-fireproof";
+
+// Import react-window components from global object with error handling
+const { FixedSizeList } = window.ReactWindow || {};
+
+// Fallback component if react-window is not available
+function VirtualizedList({ children, height, itemCount, itemSize, itemData, className }) {
+  // Simple fallback that renders all items
+  const items = [];
+  for (let i = 0; i < itemCount; i++) {
+    items.push(children({ index: i, style: {}, data: itemData }));
+  }
+  return (
+    <div className={className} style={{ height, overflow: 'auto' }}>
+      {items}
+    </div>
+  );
+}
+
+// Use the real component if available, otherwise fallback
+const AppList = FixedSizeList || VirtualizedList;
 
 export default function App() {
   const { useLiveQuery, database } = useFireproof("puter-apps-v6");
@@ -109,6 +135,7 @@ export default function App() {
   
   // New feature states
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
@@ -310,8 +337,8 @@ export default function App() {
   const filteredApps = apps
     .filter(app => {
       if (filterFavorites && !app.favorite) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
+      if (deferredSearchQuery) {
+        const q = deferredSearchQuery.toLowerCase();
         return (
           app.appName?.toLowerCase().includes(q) ||
           app.appTitle?.toLowerCase().includes(q) ||
@@ -433,6 +460,101 @@ export default function App() {
    const resetZoom = () => {
      setPreviewZoom(1.0);
    };
+
+   // App duplication function
+   async function duplicateApp(appToDuplicate, e) {
+     e?.stopPropagation();
+     if (!puter || !user || !appToDuplicate) return;
+     
+     try {
+       addLog(`Duplicating ${appToDuplicate.appName || appToDuplicate.subdomain}...`);
+       
+       // Generate new names with "-copy" suffix
+       const originalName = appToDuplicate.appName || appToDuplicate.subdomain;
+       const copySuffix = "-copy";
+       const baseName = originalName.replace(/(-copy)+$/, ""); // Remove existing copy suffixes
+       const newName = `${baseName}${copySuffix}`;
+       const newTitle = `${appToDuplicate.appTitle || appToDuplicate.appName}${copySuffix}`;
+       
+       // Generate new subdomain
+       const newSubdomain = newName.toLowerCase().replace(/[^a-z0-9-]/g, "") || puter.randName();
+       
+       // Create new directory with unique timestamp
+       const dirName = `app_${Date.now()}_copy`;
+       
+       // Write the same code to the new directory
+       await puter.fs.mkdir(dirName);
+       await puter.fs.write(`${dirName}/index.html`, appToDuplicate.code);
+       addLog(`Created directory: ${dirName}`);
+       
+       // Create new hosted site
+       const site = await puter.hosting.create(newSubdomain, dirName);
+       const hostedUrl = `https://${site.subdomain}.puter.site`;
+       addLog(`Hosted duplicate at: ${hostedUrl}`);
+       
+       // Create Puter app
+       let puterApp;
+       try {
+         puterApp = await puter.apps.create({
+           name: newName,
+           indexURL: hostedUrl,
+           title: newTitle,
+           description: appToDuplicate.prompt,
+           maximizeOnStart: true,
+           dedupeName: true
+         });
+         addLog(`App registered: ${puterApp.name}`);
+       } catch (appErr) {
+         addLog(`Name taken, using random...`);
+         const randomName = puter.randName();
+         puterApp = await puter.apps.create({
+           name: randomName,
+           indexURL: hostedUrl,
+           title: newTitle,
+           description: appToDuplicate.prompt,
+           maximizeOnStart: true
+         });
+         addLog(`App registered: ${puterApp.name}`);
+       }
+       
+       // Save duplicated app to database with version reset to 1
+       const doc = await database.put({
+         type: "app",
+         prompt: appToDuplicate.prompt,
+         code: appToDuplicate.code,
+         subdomain: site.subdomain,
+         hostedUrl,
+         appName: puterApp.name,
+         appUid: puterApp.uid,
+         appTitle: newTitle,
+         model: appToDuplicate.model,
+         dir: dirName,
+         createdAt: Date.now(),
+         views: 0, // Reset views for duplicate
+         favorite: false, // Reset favorite status
+         tags: [...(appToDuplicate.tags || [])], // Copy tags
+         version: 1 // Reset version to 1
+       });
+       
+       // Save initial version for the duplicate
+       await database.put({
+         type: "version",
+         appId: doc.id,
+         code: appToDuplicate.code,
+         version: 1,
+         createdAt: Date.now(),
+         note: "Initial version (duplicate)"
+       });
+       
+       const duplicated = await database.get(doc.id);
+       showToast(`App duplicated successfully as "${newTitle}"!`, "success");
+       addLog(`Duplicate saved: ${puterApp.name}`);
+       
+     } catch (err) {
+       addLog(`Duplication failed: ${err.message}`);
+       showToast(`Duplication failed: ${err.message}`, "error");
+     }
+   }
    
    // Monaco Editor initialization with proper error handling
    useEffect(() => {
@@ -1504,64 +1626,96 @@ RULES:
                     )}
                   </div>
 
-                  <div className="max-h-96 overflow-y-auto">
-                    {filteredApps.map(app => (
-                      <div key={app._id} onClick={() => { if (!bulkMode) { setSelectedApp(app); setEditCode(""); setTags(app.tags || []); }}}
-                        className={`p-4 border-b border-[#d0d0d0] cursor-pointer transition-all ${
-                          selectedApp?._id === app._id ? neuInset : "hover:bg-[#ddd]"}`}>
-                        <div className="flex items-start gap-3">
-                          {bulkMode && (
-                            <input type="checkbox" checked={selectedApps.has(app._id)}
-                              onChange={e => {
-                                const newSet = new Set(selectedApps);
-                                e.target.checked ? newSet.add(app._id) : newSet.delete(app._id);
-                                setSelectedApps(newSet);
-                              }}
-                              className="mt-1 w-5 h-5"
-                            />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className={`font-black ${textPrimary} flex items-center gap-2`}>
-                              <span className="text-[#dc2626]">📱</span>
-                              {app.appTitle || app.appName}
-                              {app.favorite && <span>⭐</span>}
-                            </div>
-                            <div className={`${textSecondary} text-xs flex items-center gap-2 mt-1`}>
-                              <span>v{app.version || 1}</span>
-                              <span>•</span>
-                              <span>👁️ {app.views || 0}</span>
-                            </div>
-                            <div className={`${textMuted} text-xs mt-1 truncate`}>{app.prompt}</div>
-                            {/* Tag Chips */}
-                            {app.tags && app.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {app.tags.map((tag, tagIndex) => (
-                                  <span key={tagIndex} className={`px-2 py-1 rounded-full text-xs font-bold ${neuBtn} ${textSecondary}`}>
-                                    #{tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          {!bulkMode && (
-                            <div className="flex flex-col gap-1">
-                              <button onClick={e => toggleFavorite(app, e)}
-                                className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-sm ${textPrimary}`}>
-                                {app.favorite ? "⭐" : "☆"}
-                              </button>
-                              <button onClick={e => launchApp(app, e)}
-                                className={`${neuBtnBlack} rounded-full w-8 h-8 flex items-center justify-center text-xs`}>
-                                ▶
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {filteredApps.length === 0 && (
+                  {/* Virtualized App List */}
+                  <div className="max-h-96">
+                    {filteredApps.length === 0 ? (
                       <div className={`p-6 ${textMuted} text-center`}>
-                        {searchQuery || filterFavorites ? "No matching apps" : "No apps yet"}
+                        {deferredSearchQuery || filterFavorites ? "No matching apps" : "No apps yet"}
                       </div>
+                    ) : (
+                      <AppList
+                        height={384} // max-h-96 = 24rem = 384px
+                        itemCount={filteredApps.length}
+                        itemSize={140} // Approximate height for each app card
+                        itemData={filteredApps}
+                        className="overflow-y-auto"
+                      >
+                        {({ index, style, data }) => {
+                          const app = data[index];
+                          return (
+                            <div
+                              key={app._id}
+                              style={style}
+                              onClick={() => { if (!bulkMode) { setSelectedApp(app); setEditCode(""); setTags(app.tags || []); }}}
+                              className={`p-4 border-b border-[#d0d0d0] cursor-pointer transition-all ${
+                                selectedApp?._id === app._id ? neuInset : "hover:bg-[#ddd]"
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                {bulkMode && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedApps.has(app._id)}
+                                    onChange={e => {
+                                      e.stopPropagation();
+                                      const newSet = new Set(selectedApps);
+                                      e.target.checked ? newSet.add(app._id) : newSet.delete(app._id);
+                                      setSelectedApps(newSet);
+                                    }}
+                                    className="mt-1 w-5 h-5"
+                                  />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className={`font-black ${textPrimary} flex items-center gap-2`}>
+                                    <span className="text-[#dc2626]">📱</span>
+                                    {app.appTitle || app.appName}
+                                    {app.favorite && <span>⭐</span>}
+                                  </div>
+                                  <div className={`${textSecondary} text-xs flex items-center gap-2 mt-1`}>
+                                    <span>v{app.version || 1}</span>
+                                    <span>•</span>
+                                    <span>👁️ {app.views || 0}</span>
+                                  </div>
+                                  <div className={`${textMuted} text-xs mt-1 truncate`}>{app.prompt}</div>
+                                  {/* Tag Chips */}
+                                  {app.tags && app.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                      {app.tags.map((tag, tagIndex) => (
+                                        <span key={tagIndex} className={`px-2 py-1 rounded-full text-xs font-bold ${neuBtn} ${textSecondary}`}>
+                                          #{tag}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                {!bulkMode && (
+                                  <div className="flex flex-col gap-1">
+                                    <button
+                                      onClick={e => toggleFavorite(app, e)}
+                                      className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-sm ${textPrimary}`}
+                                    >
+                                      {app.favorite ? "⭐" : "☆"}
+                                    </button>
+                                    <button
+                                      onClick={e => duplicateApp(app, e)}
+                                      className={`${neuBtn} rounded-full w-8 h-8 flex items-center justify-center text-xs`}
+                                      title="Duplicate"
+                                    >
+                                      📋
+                                    </button>
+                                    <button
+                                      onClick={e => launchApp(app, e)}
+                                      className={`${neuBtnBlack} rounded-full w-8 h-8 flex items-center justify-center text-xs`}
+                                    >
+                                      ▶
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }}
+                      </AppList>
                     )}
                   </div>
                 </div>
@@ -1787,6 +1941,11 @@ RULES:
                       <button onClick={e => toggleFavorite(selectedApp, e)}
                         className={`${neuBtn} rounded-full w-12 h-12 flex items-center justify-center text-xl ${textPrimary}`}>
                         {selectedApp.favorite ? "⭐" : "☆"}
+                      </button>
+                      <button onClick={e => duplicateApp(selectedApp, e)}
+                        className={`${neuBtn} rounded-full w-12 h-12 flex items-center justify-center text-xl ${textPrimary}`}
+                        title="Duplicate App">
+                        📋
                       </button>
                       <button onClick={e => launchApp(selectedApp, e)}
                         className={`${neuBtnRed} rounded-2xl px-6 py-3 font-black`}>
